@@ -22,6 +22,8 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { TaskSession, Project } from '@/types/chat';
+import { HackerAILogo } from '@/components/HackerAILogo';
+import { useRouter } from 'next/navigation';
 
 interface SidebarProps {
   tasks: TaskSession[];
@@ -58,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onToggleOpen,
 }) => {
+  const router = useRouter();
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
   const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null);
   const [expandedProjectIds, setExpandedProjectIds] = useState<Record<string, boolean>>({});
@@ -153,9 +156,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex items-center gap-2">
                   <motion.div 
                     whileHover={{ scale: 1.08 }}
-                    className="w-6 h-6 rounded-md bg-[#1C1C1C] border border-[#2A2A2A] flex items-center justify-center text-[10px] font-mono font-bold text-[#D0D0D0]"
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => router.push('/')}
+                    className="w-7 h-7 rounded-[8px] bg-[#161616] border border-[#282828] flex items-center justify-center cursor-pointer hover:border-[#3E3E3E] transition-colors p-1"
+                    title="Kairo Home"
                   >
-                    \l/
+                    <HackerAILogo className="w-4 h-4 text-[#F4F4F0]" />
                   </motion.div>
                 </div>
                 <div className="flex items-center gap-1">
