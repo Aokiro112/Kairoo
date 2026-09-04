@@ -12,6 +12,7 @@ import { NewProjectModal } from '@/components/modals/NewProjectModal';
 import { ToolDetailModal } from '@/components/modals/ToolDetailModal';
 import { TaskSession, ChatMessage, ToolCall, Project, AssistantStep } from '@/types/chat';
 import { FolderOpen, MessageSquare, Globe, Code2, FileText, ArrowRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 function ChatWorkspaceContent() {
   const searchParams = useSearchParams();
@@ -446,42 +447,106 @@ function ChatWorkspaceContent() {
                 )}
               </div>
             ) : (
-              // Default Clean Editorial Greeting matching screenshot
-              <div className="flex flex-col items-center text-center mb-7 select-none animate-in fade-in duration-200">
-                {/* Eyebrow badge */}
-                <div className="flex items-center gap-3 text-[11px] font-mono tracking-widest text-[#757575] uppercase mb-6">
+              // Default Clean Editorial Greeting matching screenshot with revealing animation
+              <div className="flex flex-col items-center text-center mb-7 select-none">
+                {/* Eyebrow badge with fade-in */}
+                <motion.div 
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex items-center gap-3 text-[11px] font-mono tracking-widest text-[#757575] uppercase mb-6"
+                >
                   <span className="w-6 h-[1px] bg-[#2A2A28]" />
                   <span>YOUR AI SECURITY ASSISTANT</span>
                   <span className="w-6 h-[1px] bg-[#2A2A28]" />
-                </div>
+                </motion.div>
 
-                {/* Headline */}
-                <h1 className="text-3xl sm:text-4xl md:text-[44px] font-bold text-[#F4F4F0] tracking-tight leading-[1.15] mb-3">
-                  What are we testing today,
+                {/* Staggered Mask Revealing Headline */}
+                <motion.h1 
+                  initial="hidden"
+                  animate="visible"
+                  variants={{
+                    hidden: { opacity: 0 },
+                    visible: {
+                      opacity: 1,
+                      transition: {
+                        staggerChildren: 0.18,
+                        delayChildren: 0.05,
+                      },
+                    },
+                  }}
+                  className="text-3xl sm:text-4xl md:text-[44px] font-bold text-[#F4F4F0] tracking-tight leading-[1.15] mb-3"
+                >
+                  <div className="overflow-hidden inline-block pb-1">
+                    <motion.span
+                      variants={{
+                        hidden: { y: '100%', opacity: 0, filter: 'blur(10px)' },
+                        visible: { 
+                          y: 0, 
+                          opacity: 1, 
+                          filter: 'blur(0px)',
+                          transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] } 
+                        },
+                      }}
+                      className="inline-block text-[#F4F4F0]"
+                    >
+                      What are we testing today,
+                    </motion.span>
+                  </div>
                   <br />
-                  <span className="text-[#888888]">Mayank?</span>
-                </h1>
+                  <div className="overflow-hidden inline-block pb-1">
+                    <motion.span
+                      variants={{
+                        hidden: { y: '100%', opacity: 0, filter: 'blur(10px)' },
+                        visible: { 
+                          y: 0, 
+                          opacity: 1, 
+                          filter: 'blur(0px)',
+                          transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] } 
+                        },
+                      }}
+                      className="inline-block text-[#888888]"
+                    >
+                      Mayank?
+                    </motion.span>
+                  </div>
+                </motion.h1>
 
                 {/* Subtitle */}
-                <p className="text-sm text-[#757575] max-w-lg">
+                <motion.p 
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, delay: 0.38, ease: [0.16, 1, 0.3, 1] }}
+                  className="text-sm text-[#757575] max-w-lg"
+                >
                   Ask, scan, analyze, or get help with anything security related.
-                </p>
+                </motion.p>
               </div>
             )}
 
-            {/* Prompt Input */}
-            <div className="w-full max-w-[760px]">
+            {/* Prompt Input with Smooth Reveal */}
+            <motion.div 
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-[760px]"
+            >
               <PromptInput
                 onSendMessage={handleSendMessage}
                 isLoading={isStreaming}
                 onStop={handleStopStreaming}
                 placeholder={activeProject ? `Ask, learn, brainstorm in ${activeProject.name}...` : "Ask, learn, brainstorm..."}
               />
-            </div>
+            </motion.div>
 
-            {/* 3 Action Suggestion Cards matching screenshot */}
+            {/* 3 Action Suggestion Cards matching screenshot with Staggered Reveal */}
             {!activeProject && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full max-w-[760px] mt-6">
+              <motion.div 
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.65, ease: [0.16, 1, 0.3, 1] }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full max-w-[760px] mt-6"
+              >
                 <button
                   type="button"
                   onClick={() => handlePresetClick('scan')}
@@ -532,15 +597,20 @@ function ChatWorkspaceContent() {
                   </div>
                   <ArrowRight className="w-3.5 h-3.5 text-[#555555] group-hover:text-white group-hover:translate-x-0.5 transition-all mt-0.5 shrink-0" />
                 </button>
-              </div>
+              </motion.div>
             )}
 
             {/* Bottom Footer Accent */}
-            <div className="mt-14 flex items-center gap-3 text-[10px] font-mono tracking-widest text-[#555555] uppercase select-none">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.7, delay: 0.8 }}
+              className="mt-14 flex items-center gap-3 text-[10px] font-mono tracking-widest text-[#555555] uppercase select-none"
+            >
               <span className="w-8 h-[1px] bg-[#222222]" />
               <span>A SAFER INTERNET STARTS HERE.</span>
               <span className="w-8 h-[1px] bg-[#222222]" />
-            </div>
+            </motion.div>
           </div>
         ) : (
           // Active Chat Feed View
