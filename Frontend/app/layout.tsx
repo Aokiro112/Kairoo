@@ -1,27 +1,35 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const ibmPlexMono = IBM_Plex_Mono({
+  variable: "--font-ibm-plex-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://kairo.bond'),
-  title: 'Kairo — Advanced Security & AI Research Assistant',
+  title: 'Kairo — Autonomous AI Cybersecurity Copilot & Pentesting Workstation',
   description:
-    'Find and fix vulnerabilities by working with Kairo, the autonomous cybersecurity AI copilot.',
+    'Find vulnerabilities. Fix them faster. Autonomous AI copilot for penetration testing, vulnerability research, and secure development.',
   openGraph: {
-    title: 'Kairo — Cybersecurity AI Copilot',
-    description: 'Autonomous vulnerability scanning & security reconnaissance.',
+    title: 'Kairo — Autonomous AI Cybersecurity Copilot',
+    description: 'Find vulnerabilities. Fix them faster. Autonomous AI copilot for offensive security and code auditing.',
     url: 'https://kairo.bond',
     siteName: 'Kairo',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Kairo — Autonomous AI Cybersecurity Copilot',
+    description: 'Find vulnerabilities. Fix them faster. Autonomous AI copilot for offensive security.',
   },
 };
 
@@ -31,9 +39,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark scroll-smooth">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#141414] text-white selection:bg-neutral-700 selection:text-white min-h-screen`}
+        className={`${spaceGrotesk.variable} ${ibmPlexMono.variable} antialiased bg-[#090909] text-[#F4F4F0] selection:bg-[#F4F4F0] selection:text-[#090909] min-h-screen`}
       >
         {children}
       </body>
