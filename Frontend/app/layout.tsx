@@ -13,9 +13,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kairo — Advanced Security & AI Research Assistant",
+  metadataBase: new URL('https://kairo.bond'),
+  title: 'Kairo — Advanced Security & AI Research Assistant',
   description:
-    "Find and fix vulnerabilities by working with Kairo, the autonomous cybersecurity AI copilot.",
+    'Find and fix vulnerabilities by working with Kairo, the autonomous cybersecurity AI copilot.',
+  openGraph: {
+    title: 'Kairo — Cybersecurity AI Copilot',
+    description: 'Autonomous vulnerability scanning & security reconnaissance.',
+    url: 'https://kairo.bond',
+    siteName: 'Kairo',
+  },
 };
 
 export default function RootLayout({

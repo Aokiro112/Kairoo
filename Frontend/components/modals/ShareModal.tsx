@@ -17,7 +17,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   taskId,
 }) => {
   const [copied, setCopied] = useState(false);
-  const shareUrl = `https://kairo.ai/c/${taskId || '140b7335-3039-4014-ad6f-76c64c6e966b'}`;
+  const shareUrl = `https://kairo.bond/c/${taskId || '140b7335-3039-4014-ad6f-76c64c6e966b'}`;
 
   if (!isOpen) return null;
 

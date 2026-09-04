@@ -275,6 +275,42 @@ Now open **`http://localhost:3000`** in your browser.
 
 ---
 
+## ☁️ Cloud Deployment Guide (Vercel + Railway + `kairo.bond`)
+
+### 1. Deploy Backend on [Railway](https://railway.app)
+1. Go to [railway.app](https://railway.app) and create a **New Project** $\rightarrow$ **Deploy from GitHub repo**.
+2. Set **Root Directory** to `/Backend`.
+3. In **Settings** $\rightarrow$ **Variables**, add:
+   ```env
+   PORT=5000
+   DATABASE_URL="file:./prisma/dev.db"
+   GROQ_API_KEYS="gsk_key1,gsk_key2"
+   ```
+4. In **Settings** $\rightarrow$ **Networking**, click **Generate Domain** (e.g. `https://kairo-backend-production.up.railway.app`) or attach custom domain `api.kairo.bond`.
+
+---
+
+### 2. Deploy Frontend on [Vercel](https://vercel.com)
+1. Go to [vercel.com](https://vercel.com) and click **Add New...** $\rightarrow$ **Project** $\rightarrow$ Import your GitHub repository.
+2. Set **Root Directory** to `Frontend`.
+3. In **Environment Variables**, add:
+   ```env
+   BACKEND_URL=https://kairo-backend-production.up.railway.app
+   ```
+   *(Replace with your actual Railway backend URL or `https://api.kairo.bond`)*.
+4. Click **Deploy**. Next.js will automatically proxy all `/api/*` requests to your Railway backend without CORS or mixed-content issues.
+
+---
+
+### 3. Connect Custom Domain (`kairo.bond`)
+1. In your **Vercel Dashboard** $\rightarrow$ **Settings** $\rightarrow$ **Domains**, enter **`kairo.bond`** (and `www.kairo.bond`).
+2. Go to your DNS Registrar (e.g. Cloudflare, Namecheap, GoDaddy, Porkbun) and add the records provided by Vercel:
+   - **Type**: `A` | **Name**: `@` | **Value**: `76.76.21.21`
+   - **Type**: `CNAME` | **Name**: `www` | **Value**: `cname.vercel-dns.com`
+3. *(Optional for API)*: In Railway **Settings** $\rightarrow$ **Custom Domain**, add `api.kairo.bond` and add the corresponding `CNAME` in your DNS provider.
+
+---
+
 ## 🎨 Design System
 
 Kairo uses a tailored monochrome design system inspired by top cybersecurity developer tools:
