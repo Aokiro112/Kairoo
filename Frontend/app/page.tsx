@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { 
   ArrowRight, 
   Paperclip, 
@@ -127,7 +128,7 @@ export default function RootLandingPage() {
   return (
     <div className="min-h-screen w-full bg-[#090909] text-[#F4F4F0] flex flex-col justify-between font-sans antialiased selection:bg-[#F4F4F0] selection:text-[#090909] relative overflow-x-hidden">
       
-      {/* Background Subtle Technical Grid with Scanline */}
+      {/* Background Subtle Technical Grid */}
       <div className="fixed inset-0 pointer-events-none brutalist-grid opacity-30 z-0" />
 
       {/* Editorial Desktop Margin Labels */}
@@ -217,30 +218,77 @@ export default function RootLandingPage() {
       </header>
 
       {/* Main Content Body */}
-      <main className="flex-1 flex flex-col items-center justify-start w-full relative z-10 px-4 sm:px-6 pt-12 sm:pt-16 pb-24">
+      <main className="flex-1 flex flex-col items-center justify-start w-full relative z-10 px-4 sm:px-6 pt-16 sm:pt-20 pb-24">
         
-        {/* Eyebrow Pill */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#2A2A28] bg-[#111111] text-xs font-mono text-[#A3A3A0] mb-8 shadow-xs hover:border-[#383838] transition-colors">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#B8FF3D] opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#B8FF3D]"></span>
-          </span>
-          <span>AI-powered offensive security for modern teams</span>
-        </div>
-
-        {/* Hero Headlines */}
+        {/* Revealing Animated Hero Headline */}
         <div className="text-center max-w-4xl mx-auto mb-6">
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-[#F4F4F0] leading-[1.08] mb-4">
-            Find vulnerabilities.<br />
-            Fix them faster.
-          </h1>
-          <p className="text-base sm:text-lg text-[#A3A3A0] max-w-2xl mx-auto leading-relaxed">
+          <motion.h1 
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: 0.18,
+                  delayChildren: 0.05,
+                },
+              },
+            }}
+            className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-[#F4F4F0] leading-[1.08] mb-5 select-none"
+          >
+            <div className="overflow-hidden inline-block pb-1">
+              <motion.span
+                variants={{
+                  hidden: { y: '100%', opacity: 0, filter: 'blur(10px)' },
+                  visible: { 
+                    y: 0, 
+                    opacity: 1, 
+                    filter: 'blur(0px)',
+                    transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] } 
+                  },
+                }}
+                className="inline-block text-[#F4F4F0]"
+              >
+                Find vulnerabilities.
+              </motion.span>
+            </div>
+            <br />
+            <div className="overflow-hidden inline-block pb-1">
+              <motion.span
+                variants={{
+                  hidden: { y: '100%', opacity: 0, filter: 'blur(10px)' },
+                  visible: { 
+                    y: 0, 
+                    opacity: 1, 
+                    filter: 'blur(0px)',
+                    transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] } 
+                  },
+                }}
+                className="inline-block text-[#F4F4F0]"
+              >
+                Fix them faster.
+              </motion.span>
+            </div>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            className="text-base sm:text-lg text-[#A3A3A0] max-w-2xl mx-auto leading-relaxed"
+          >
             Autonomous AI copilot for penetration testing, vulnerability research and secure development — built for individuals and teams who take security seriously.
-          </p>
+          </motion.p>
         </div>
 
         {/* Interactive Prompt Input Bar with Glow Ring */}
-        <div className="w-full max-w-2xl mx-auto mb-5">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full max-w-2xl mx-auto mb-5"
+        >
           <div className="relative flex items-center border border-[#2A2A28] bg-[#111111] rounded-full p-1.5 sm:p-2 shadow-2xl focus-within:border-[#4A4A48] focus-within:ring-1 focus-within:ring-[#F4F4F0]/20 transition-all duration-200">
             <div className="pl-4 pr-2 text-[#686865] font-mono text-sm select-none">
               &gt;_
@@ -275,10 +323,15 @@ export default function RootLandingPage() {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Try an example Chips with Micro Hover */}
-        <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-[#686865] mb-16">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.7, delay: 0.75 }}
+          className="flex flex-wrap items-center justify-center gap-2 text-xs text-[#686865] mb-16"
+        >
           <span className="font-mono mr-1 select-none">Try an example:</span>
           
           {[
@@ -295,10 +348,15 @@ export default function RootLandingPage() {
               {chip.label}
             </button>
           ))}
-        </div>
+        </motion.div>
 
         {/* Security Workstation Dashboard Preview */}
-        <div className="w-full max-w-5xl mx-auto border border-[#2A2A28] bg-[#0D0D0D] rounded-xl overflow-hidden shadow-2xl relative group/workstation">
+        <motion.div 
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.85, delay: 0.85, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full max-w-5xl mx-auto border border-[#2A2A28] bg-[#0D0D0D] rounded-xl overflow-hidden shadow-2xl relative group/workstation"
+        >
           
           {/* Workstation Top Bar */}
           <div className="border-b border-[#1D1D1B] bg-[#111111] px-4 py-3 flex flex-wrap items-center justify-between gap-4">
@@ -614,7 +672,7 @@ export default function RootLandingPage() {
 
           </div>
 
-        </div>
+        </motion.div>
 
         {/* Section: Swiss Editorial Capabilities Grid */}
         <section id="features" className="w-full max-w-5xl mx-auto mt-28">
@@ -856,18 +914,18 @@ export default function RootLandingPage() {
             <div>
               <div className="font-mono text-[#F4F4F0] mb-2 font-semibold">PRODUCT</div>
               <ul className="space-y-1.5">
-                <li><button onClick={() => router.push('/chat')} className="hover:text-[#F4F4F0] transition-colors">Workstation</button></li>
-                <li><a href="#features" className="hover:text-[#F4F4F0] transition-colors">Features</a></li>
-                <li><button onClick={() => setActiveModal('pricing')} className="hover:text-[#F4F4F0] transition-colors">Pricing</button></li>
+                <li><button onClick={() => router.push('/chat')} className="hover:text-[#F4F4F0]">Workstation</button></li>
+                <li><a href="#features" className="hover:text-[#F4F4F0]">Features</a></li>
+                <li><button onClick={() => setActiveModal('pricing')} className="hover:text-[#F4F4F0]">Pricing</button></li>
               </ul>
             </div>
 
             <div>
               <div className="font-mono text-[#F4F4F0] mb-2 font-semibold">SECURITY</div>
               <ul className="space-y-1.5">
-                <li><button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0] transition-colors">Trust Center</button></li>
-                <li><a href="#capabilities" className="hover:text-[#F4F4F0] transition-colors">CVE Database</a></li>
-                <li><button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0] transition-colors">Privacy Policy</button></li>
+                <li><button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">Trust Center</button></li>
+                <li><a href="#capabilities" className="hover:text-[#F4F4F0]">CVE Database</a></li>
+                <li><button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">Privacy Policy</button></li>
               </ul>
             </div>
 
@@ -886,9 +944,9 @@ export default function RootLandingPage() {
         <div className="max-w-7xl mx-auto pt-8 mt-8 border-t border-[#1D1D1B] flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[11px]">
           <div>© {new Date().getFullYear()} Kairo Security Inc. All rights reserved.</div>
           <div className="flex items-center gap-4">
-            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0] transition-colors">TERMS</button>
-            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0] transition-colors">PRIVACY</button>
-            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0] transition-colors">RESPONSIBLE DISCLOSURE</button>
+            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">TERMS</button>
+            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">PRIVACY</button>
+            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">RESPONSIBLE DISCLOSURE</button>
           </div>
         </div>
       </footer>
