@@ -48,9 +48,9 @@ export function Footer() {
           <div>
             <div className="font-mono text-[#F4F4F0] mb-2 font-semibold">SECURITY</div>
             <ul className="space-y-1.5">
-              <li><button onClick={() => router.push('/security')} className="hover:text-[#F4F4F0] transition-colors">Trust Center</button></li>
+              <li><button onClick={() => router.push('/trust')} className="hover:text-[#F4F4F0] transition-colors">Trust Center</button></li>
               <li><button onClick={() => router.push('/docs')} className="hover:text-[#F4F4F0] transition-colors">Documentation</button></li>
-              <li><button onClick={() => router.push('/security')} className="hover:text-[#F4F4F0] transition-colors">Privacy Policy</button></li>
+              <li><button onClick={() => router.push('/privacy')} className="hover:text-[#F4F4F0] transition-colors">Privacy Policy</button></li>
             </ul>
           </div>
 
@@ -69,9 +69,9 @@ export function Footer() {
       <div className="max-w-7xl mx-auto pt-8 mt-8 border-t border-[#1D1D1B] flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[11px]">
         <div>© {new Date().getFullYear()} Kairo Security Inc. All rights reserved.</div>
         <div className="flex items-center gap-4">
-          <button onClick={() => router.push('/security')} className="hover:text-[#F4F4F0] transition-colors">TERMS</button>
-          <button onClick={() => router.push('/security')} className="hover:text-[#F4F4F0] transition-colors">PRIVACY</button>
-          <button onClick={() => router.push('/security')} className="hover:text-[#F4F4F0] transition-colors">RESPONSIBLE DISCLOSURE</button>
+          <button onClick={() => router.push('/terms')} className="hover:text-[#F4F4F0] transition-colors">TERMS</button>
+          <button onClick={() => router.push('/privacy')} className="hover:text-[#F4F4F0] transition-colors">PRIVACY</button>
+          <button onClick={() => router.push('/disclosure')} className="hover:text-[#F4F4F0] transition-colors">RESPONSIBLE DISCLOSURE</button>
         </div>
       </div>
     </footer>
