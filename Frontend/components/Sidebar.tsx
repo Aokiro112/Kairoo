@@ -140,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               stiffness: 260,
               opacity: { duration: 0.2 }
             }}
-            className="h-screen bg-[#141414] border-r border-[#262626] flex flex-col justify-between shrink-0 select-none z-20 text-sm overflow-hidden"
+            className="h-screen bg-[#0D0D0D] border-r border-[#1C1C1C] flex flex-col justify-between shrink-0 select-none z-20 text-sm overflow-hidden"
           >
             <motion.div 
               initial={{ opacity: 0 }}
@@ -152,10 +152,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="h-12 px-3 flex items-center justify-between border-b border-transparent">
                 <div className="flex items-center gap-2">
                   <motion.div 
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    className="w-6 h-6 rounded bg-neutral-800 border border-neutral-700 flex items-center justify-center text-xs font-mono font-bold text-neutral-300"
+                    whileHover={{ scale: 1.08 }}
+                    className="w-6 h-6 rounded-md bg-[#1C1C1C] border border-[#2A2A2A] flex items-center justify-center text-[10px] font-mono font-bold text-[#D0D0D0]"
                   >
-                    #
+                    \l/
                   </motion.div>
                 </div>
                 <div className="flex items-center gap-1">

@@ -11,7 +11,7 @@ import { ShareModal } from '@/components/modals/ShareModal';
 import { NewProjectModal } from '@/components/modals/NewProjectModal';
 import { ToolDetailModal } from '@/components/modals/ToolDetailModal';
 import { TaskSession, ChatMessage, ToolCall, Project, AssistantStep } from '@/types/chat';
-import { FolderOpen, MessageSquare } from 'lucide-react';
+import { FolderOpen, MessageSquare, Globe, Code2, FileText, ArrowRight } from 'lucide-react';
 
 function ChatWorkspaceContent() {
   const searchParams = useSearchParams();
@@ -349,8 +349,24 @@ function ChatWorkspaceContent() {
     setIsStreaming(false);
   };
 
+  const handlePresetClick = (presetType: 'scan' | 'audit' | 'explain') => {
+    let presetPrompt = '';
+    if (presetType === 'scan') {
+      presetPrompt = 'Scan a website for vulnerabilities and open ports';
+    } else if (presetType === 'audit') {
+      presetPrompt = 'Audit my codebase for OWASP Top 10 vulnerabilities and hardcoded secrets';
+    } else if (presetType === 'explain') {
+      presetPrompt = 'Explain a vulnerability and provide non-destructive proof of concept steps';
+    }
+    handleSendMessage(presetPrompt, {
+      mode: 'Ask',
+      target: 'Kairo Desktop',
+      model: 'openai/gpt-4o',
+    });
+  };
+
   return (
-    <main className="flex h-screen w-screen bg-[#141414] overflow-hidden text-white font-sans antialiased">
+    <main className="flex h-screen w-screen bg-[#090909] overflow-hidden text-[#F4F4F0] font-sans antialiased">
       {/* Sidebar */}
       <Sidebar
         tasks={tasks}
@@ -371,7 +387,7 @@ function ChatWorkspaceContent() {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative bg-[#090909]">
         {/* Header */}
         <ChatHeader
           title={activeTask?.title}
@@ -383,10 +399,10 @@ function ChatWorkspaceContent() {
 
         {/* Dynamic Center/Feed Content */}
         {isNewSession ? (
-          <div className="flex-1 flex flex-col items-center justify-center px-4 -mt-10 overflow-y-auto">
+          <div className="flex-1 flex flex-col items-center justify-center px-4 overflow-y-auto pb-12 pt-4">
             {activeProject ? (
               // Active Project Workspace Dashboard
-              <div className="w-full max-w-[680px] flex flex-col items-center animate-in fade-in duration-150 mb-6">
+              <div className="w-full max-w-[760px] flex flex-col items-center animate-in fade-in duration-150 mb-6">
                 <div className="flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-[#1C1C1C] border border-[#2E2E2E] text-xs text-[#CCCCCC]">
                   <FolderOpen className="w-3.5 h-3.5 text-[#A0A0A0]" />
                   <span>Project Workspace</span>
@@ -430,20 +446,100 @@ function ChatWorkspaceContent() {
                 )}
               </div>
             ) : (
-              // Default Clean Greeting
-              <h1 className="text-2xl sm:text-[30px] font-semibold text-white tracking-tight text-center mb-7 animate-in fade-in">
-                What are we testing today, Mayank?
-              </h1>
+              // Default Clean Editorial Greeting matching screenshot
+              <div className="flex flex-col items-center text-center mb-7 select-none animate-in fade-in duration-200">
+                {/* Eyebrow badge */}
+                <div className="flex items-center gap-3 text-[11px] font-mono tracking-widest text-[#757575] uppercase mb-6">
+                  <span className="w-6 h-[1px] bg-[#2A2A28]" />
+                  <span>YOUR AI SECURITY ASSISTANT</span>
+                  <span className="w-6 h-[1px] bg-[#2A2A28]" />
+                </div>
+
+                {/* Headline */}
+                <h1 className="text-3xl sm:text-4xl md:text-[44px] font-bold text-[#F4F4F0] tracking-tight leading-[1.15] mb-3">
+                  What are we testing today,
+                  <br />
+                  <span className="text-[#888888]">Mayank?</span>
+                </h1>
+
+                {/* Subtitle */}
+                <p className="text-sm text-[#757575] max-w-lg">
+                  Ask, scan, analyze, or get help with anything security related.
+                </p>
+              </div>
             )}
 
             {/* Prompt Input */}
-            <div className="w-full max-w-[680px]">
+            <div className="w-full max-w-[760px]">
               <PromptInput
                 onSendMessage={handleSendMessage}
                 isLoading={isStreaming}
                 onStop={handleStopStreaming}
-                placeholder={activeProject ? `Ask, learn, brainstorm in ${activeProject.name}` : "Ask, learn, brainstorm"}
+                placeholder={activeProject ? `Ask, learn, brainstorm in ${activeProject.name}...` : "Ask, learn, brainstorm..."}
               />
+            </div>
+
+            {/* 3 Action Suggestion Cards matching screenshot */}
+            {!activeProject && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full max-w-[760px] mt-6">
+                <button
+                  type="button"
+                  onClick={() => handlePresetClick('scan')}
+                  className="p-4 sm:p-5 rounded-2xl border border-[#222222] bg-[#111111] hover:bg-[#161616] hover:border-[#383838] transition-all text-left group flex items-start justify-between cursor-pointer shadow-sm"
+                >
+                  <div className="space-y-1.5 pr-2">
+                    <div className="flex items-center gap-2.5">
+                      <Globe className="w-4 h-4 text-[#A0A0A0] group-hover:text-white transition-colors" />
+                      <span className="text-xs font-semibold text-[#F4F4F0] group-hover:text-white">Scan a website</span>
+                    </div>
+                    <p className="text-[11.5px] text-[#757575] leading-snug">
+                      Check for vulnerabilities in a target.
+                    </p>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#555555] group-hover:text-white group-hover:translate-x-0.5 transition-all mt-0.5 shrink-0" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePresetClick('audit')}
+                  className="p-4 sm:p-5 rounded-2xl border border-[#222222] bg-[#111111] hover:bg-[#161616] hover:border-[#383838] transition-all text-left group flex items-start justify-between cursor-pointer shadow-sm"
+                >
+                  <div className="space-y-1.5 pr-2">
+                    <div className="flex items-center gap-2.5">
+                      <Code2 className="w-4 h-4 text-[#A0A0A0] group-hover:text-white transition-colors" />
+                      <span className="text-xs font-semibold text-[#F4F4F0] group-hover:text-white">Audit my code</span>
+                    </div>
+                    <p className="text-[11.5px] text-[#757575] leading-snug">
+                      Find security issues in your code.
+                    </p>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#555555] group-hover:text-white group-hover:translate-x-0.5 transition-all mt-0.5 shrink-0" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePresetClick('explain')}
+                  className="p-4 sm:p-5 rounded-2xl border border-[#222222] bg-[#111111] hover:bg-[#161616] hover:border-[#383838] transition-all text-left group flex items-start justify-between cursor-pointer shadow-sm"
+                >
+                  <div className="space-y-1.5 pr-2">
+                    <div className="flex items-center gap-2.5">
+                      <FileText className="w-4 h-4 text-[#A0A0A0] group-hover:text-white transition-colors" />
+                      <span className="text-xs font-semibold text-[#F4F4F0] group-hover:text-white">Explain a vulnerability</span>
+                    </div>
+                    <p className="text-[11.5px] text-[#757575] leading-snug">
+                      Get clear, simple explanations.
+                    </p>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#555555] group-hover:text-white group-hover:translate-x-0.5 transition-all mt-0.5 shrink-0" />
+                </button>
+              </div>
+            )}
+
+            {/* Bottom Footer Accent */}
+            <div className="mt-14 flex items-center gap-3 text-[10px] font-mono tracking-widest text-[#555555] uppercase select-none">
+              <span className="w-8 h-[1px] bg-[#222222]" />
+              <span>A SAFER INTERNET STARTS HERE.</span>
+              <span className="w-8 h-[1px] bg-[#222222]" />
             </div>
           </div>
         ) : (
