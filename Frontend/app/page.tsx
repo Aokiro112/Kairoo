@@ -30,6 +30,13 @@ const PLACEHOLDER_PROMPTS = [
   'Generate an autonomous penetration test report for /api/v1',
 ];
 
+const SCAN_STAGES = [
+  { progress: 42, stage: 'Enumerating endpoints...', target: 'https://example.com' },
+  { progress: 68, stage: 'Fuzzing SQLi & API parameters...', target: 'https://example.com' },
+  { progress: 85, stage: 'Verifying exploit proofs...', target: 'https://example.com' },
+  { progress: 100, stage: 'Audit finalized — 4 findings', target: 'https://example.com' },
+];
+
 const TERMINAL_LOGS = [
   { type: 'INFO', text: 'Starting reconnaissance on target...' },
   { type: 'INFO', text: 'Found 12 subdomains (api, auth, staging, dev...)' },
@@ -54,6 +61,17 @@ export default function RootLandingPage() {
   const [placeholderText, setPlaceholderText] = useState('');
   const [promptIndex, setPromptIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Live dynamic scanning simulation
+  const [scanStep, setScanStep] = useState(0);
+  const currentScan = SCAN_STAGES[scanStep % SCAN_STAGES.length];
+
+  useEffect(() => {
+    const scanInterval = setInterval(() => {
+      setScanStep((prev) => (prev + 1) % SCAN_STAGES.length);
+    }, 4000);
+    return () => clearInterval(scanInterval);
+  }, []);
 
   useEffect(() => {
     const currentFullText = PLACEHOLDER_PROMPTS[promptIndex % PLACEHOLDER_PROMPTS.length];
@@ -109,10 +127,10 @@ export default function RootLandingPage() {
   return (
     <div className="min-h-screen w-full bg-[#090909] text-[#F4F4F0] flex flex-col justify-between font-sans antialiased selection:bg-[#F4F4F0] selection:text-[#090909] relative overflow-x-hidden">
       
-      {/* Background Subtle Technical Grid */}
+      {/* Background Subtle Technical Grid with Scanline */}
       <div className="fixed inset-0 pointer-events-none brutalist-grid opacity-30 z-0" />
 
-      {/* Editorial Desktop Margin Labels (Brutalist Technical Text) */}
+      {/* Editorial Desktop Margin Labels */}
       <div className="hidden xl:flex fixed left-6 top-32 flex-col gap-1 text-[10px] font-mono tracking-widest text-[#686865] select-none z-10">
         <span>AI FOR A</span>
         <span>SAFER</span>
@@ -144,7 +162,7 @@ export default function RootLandingPage() {
       </div>
 
       {/* Top Navigation Bar */}
-      <header className="w-full border-b border-[#1D1D1B] bg-[#090909]/90 backdrop-blur-md sticky top-0 z-40">
+      <header className="w-full border-b border-[#1D1D1B] bg-[#090909]/90 backdrop-blur-md sticky top-0 z-40 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
           {/* Logo & Links */}
           <div className="flex items-center gap-8">
@@ -152,7 +170,7 @@ export default function RootLandingPage() {
               onClick={() => router.push('/')}
               className="flex items-center gap-3 cursor-pointer group select-none"
             >
-              <HackerAILogo className="w-6 h-6 text-[#F4F4F0] group-hover:opacity-80 transition-opacity" />
+              <HackerAILogo className="w-6 h-6 text-[#F4F4F0] group-hover:scale-105 transition-transform duration-200" />
               <span className="text-xl font-bold tracking-tight text-[#F4F4F0] font-sans">
                 Kairo
               </span>
@@ -189,10 +207,10 @@ export default function RootLandingPage() {
 
             <button
               onClick={() => router.push('/chat')}
-              className="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-full bg-[#F4F4F0] text-[#090909] font-semibold text-sm hover:bg-white transition-all shadow-xs"
+              className="group inline-flex items-center justify-center gap-2 h-9 px-4 rounded-full bg-[#F4F4F0] text-[#090909] font-semibold text-sm hover:bg-white active:scale-95 transition-all shadow-xs"
             >
               <span>Get started</span>
-              <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+              <ArrowRight className="w-3.5 h-3.5 stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
         </div>
@@ -202,8 +220,11 @@ export default function RootLandingPage() {
       <main className="flex-1 flex flex-col items-center justify-start w-full relative z-10 px-4 sm:px-6 pt-12 sm:pt-16 pb-24">
         
         {/* Eyebrow Pill */}
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#2A2A28] bg-[#111111] text-xs font-mono text-[#A3A3A0] mb-8 shadow-xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#B8FF3D] animate-pulse" />
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#2A2A28] bg-[#111111] text-xs font-mono text-[#A3A3A0] mb-8 shadow-xs hover:border-[#383838] transition-colors">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#B8FF3D] opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#B8FF3D]"></span>
+          </span>
           <span>AI-powered offensive security for modern teams</span>
         </div>
 
@@ -218,9 +239,9 @@ export default function RootLandingPage() {
           </p>
         </div>
 
-        {/* Interactive Prompt Input Bar */}
+        {/* Interactive Prompt Input Bar with Glow Ring */}
         <div className="w-full max-w-2xl mx-auto mb-5">
-          <div className="relative flex items-center border border-[#2A2A28] bg-[#111111] rounded-full p-1.5 sm:p-2 shadow-2xl focus-within:border-[#444444] transition-all">
+          <div className="relative flex items-center border border-[#2A2A28] bg-[#111111] rounded-full p-1.5 sm:p-2 shadow-2xl focus-within:border-[#4A4A48] focus-within:ring-1 focus-within:ring-[#F4F4F0]/20 transition-all duration-200">
             <div className="pl-4 pr-2 text-[#686865] font-mono text-sm select-none">
               &gt;_
             </div>
@@ -238,7 +259,7 @@ export default function RootLandingPage() {
               <button
                 type="button"
                 onClick={() => router.push('/chat')}
-                className="p-2 text-[#686865] hover:text-[#F4F4F0] transition-colors rounded-full"
+                className="p-2 text-[#686865] hover:text-[#F4F4F0] hover:bg-[#1C1C1C] transition-colors rounded-full"
                 title="Attach target or file"
               >
                 <Paperclip className="w-4 h-4" />
@@ -247,16 +268,16 @@ export default function RootLandingPage() {
               <button
                 type="button"
                 onClick={() => handleSubmit()}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#F4F4F0] text-[#090909] font-medium text-xs sm:text-sm hover:bg-white transition-all shadow-xs select-none"
+                className="group inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#F4F4F0] text-[#090909] font-medium text-xs sm:text-sm hover:bg-white active:scale-95 transition-all shadow-xs select-none"
               >
                 <span>Get started</span>
-                <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                <ArrowRight className="w-3.5 h-3.5 stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
               </button>
             </div>
           </div>
         </div>
 
-        {/* Try an example Chips */}
+        {/* Try an example Chips with Micro Hover */}
         <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-[#686865] mb-16">
           <span className="font-mono mr-1 select-none">Try an example:</span>
           
@@ -269,15 +290,15 @@ export default function RootLandingPage() {
             <button
               key={idx}
               onClick={() => handleSubmit(chip.query)}
-              className="px-3.5 py-1.5 rounded-full border border-[#2A2A28] bg-[#111111] hover:border-[#444444] hover:text-[#F4F4F0] text-[#A3A3A0] transition-all font-sans cursor-pointer select-none"
+              className="px-3.5 py-1.5 rounded-full border border-[#2A2A28] bg-[#111111] hover:border-[#444444] hover:text-[#F4F4F0] hover:bg-[#161616] active:scale-95 text-[#A3A3A0] transition-all duration-150 font-sans cursor-pointer select-none"
             >
               {chip.label}
             </button>
           ))}
         </div>
 
-        {/* Security Workstation Dashboard Preview (Showcase Matching Mockup) */}
-        <div className="w-full max-w-5xl mx-auto border border-[#2A2A28] bg-[#0D0D0D] rounded-xl overflow-hidden shadow-2xl">
+        {/* Security Workstation Dashboard Preview */}
+        <div className="w-full max-w-5xl mx-auto border border-[#2A2A28] bg-[#0D0D0D] rounded-xl overflow-hidden shadow-2xl relative group/workstation">
           
           {/* Workstation Top Bar */}
           <div className="border-b border-[#1D1D1B] bg-[#111111] px-4 py-3 flex flex-wrap items-center justify-between gap-4">
@@ -288,20 +309,24 @@ export default function RootLandingPage() {
               </div>
             </div>
 
-            {/* Middle: Active scan indicator */}
-            <div className="flex items-center gap-3 bg-[#090909] border border-[#222222] px-3 py-1.5 rounded-md">
+            {/* Middle: Active scan indicator with smooth transition */}
+            <div className="flex items-center gap-3 bg-[#090909] border border-[#222222] px-3 py-1.5 rounded-md transition-all">
               <RotateCw className="w-3.5 h-3.5 text-[#B8FF3D] animate-spin" />
               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                 <span className="text-xs font-semibold text-[#F4F4F0]">Scan in progress</span>
-                <span className="text-[11px] font-mono text-[#686865]">Scanning target: https://example.com</span>
+                <span className="text-[11px] font-mono text-[#686865]">Scanning target: {currentScan.target}</span>
               </div>
             </div>
 
             {/* Right: Progress & User */}
             <div className="flex items-center gap-4">
               <div className="hidden sm:flex flex-col items-end">
-                <span className="text-xs font-mono font-bold text-[#F4F4F0]">42%</span>
-                <span className="text-[10px] text-[#686865]">Enumerating endpoints...</span>
+                <span className="text-xs font-mono font-bold text-[#F4F4F0] transition-all">
+                  {currentScan.progress}%
+                </span>
+                <span className="text-[10px] text-[#686865] transition-all">
+                  {currentScan.stage}
+                </span>
               </div>
 
               <div className="flex items-center gap-2 border-l border-[#222222] pl-3">
@@ -312,7 +337,7 @@ export default function RootLandingPage() {
                   <span className="text-xs font-medium text-[#F4F4F0] leading-none">Mayank</span>
                   <span className="text-[10px] text-[#686865] leading-none mt-0.5">Pro Plan</span>
                 </div>
-                <MoreVertical className="w-3.5 h-3.5 text-[#686865] cursor-pointer hover:text-white ml-1" />
+                <MoreVertical className="w-3.5 h-3.5 text-[#686865] cursor-pointer hover:text-white ml-1 transition-colors" />
               </div>
             </div>
           </div>
@@ -325,14 +350,14 @@ export default function RootLandingPage() {
               <div className="space-y-3">
                 <button 
                   onClick={() => router.push('/chat')}
-                  className="w-full py-2 px-3 rounded border border-[#2A2A28] bg-[#161616] hover:bg-[#202020] text-xs font-medium text-[#F4F4F0] flex items-center justify-center gap-2 transition-colors"
+                  className="w-full py-2 px-3 rounded border border-[#2A2A28] bg-[#161616] hover:bg-[#202020] hover:border-[#383838] active:scale-98 text-xs font-medium text-[#F4F4F0] flex items-center justify-center gap-2 transition-all duration-150"
                 >
                   <span className="text-sm leading-none">+</span>
                   <span>New Scan</span>
                 </button>
 
                 <nav className="space-y-0.5 text-xs">
-                  <div className="px-2.5 py-1.5 rounded bg-[#1A1A18] text-[#F4F4F0] font-medium flex items-center gap-2.5">
+                  <div className="px-2.5 py-1.5 rounded bg-[#1A1A18] border border-[#2A2A28] text-[#F4F4F0] font-medium flex items-center gap-2.5 transition-colors">
                     <Layers className="w-3.5 h-3.5 text-[#B8FF3D]" />
                     <span>Dashboard</span>
                   </div>
@@ -361,8 +386,11 @@ export default function RootLandingPage() {
 
               <div className="pt-4 border-t border-[#1D1D1B] text-[10px] font-mono text-[#686865] flex items-center justify-between">
                 <span>ENGINE: KAIRO-V2</span>
-                <span className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#B8FF3D]" />
+                <span className="flex items-center gap-1.5">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#B8FF3D] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#B8FF3D]"></span>
+                  </span>
                   ONLINE
                 </span>
               </div>
@@ -378,7 +406,7 @@ export default function RootLandingPage() {
                   </div>
                   <button
                     onClick={handleCopyLogs}
-                    className="flex items-center gap-1 text-[11px] font-mono text-[#686865] hover:text-[#F4F4F0] transition-colors px-1.5 py-0.5 rounded border border-[#222222]"
+                    className="flex items-center gap-1 text-[11px] font-mono text-[#686865] hover:text-[#F4F4F0] hover:border-[#383838] transition-all px-1.5 py-0.5 rounded border border-[#222222]"
                   >
                     {copiedTerminal ? (
                       <>
@@ -396,7 +424,7 @@ export default function RootLandingPage() {
 
                 <div className="font-mono text-[11px] leading-relaxed space-y-1 select-text">
                   {TERMINAL_LOGS.map((log, i) => (
-                    <div key={i} className="flex items-start gap-1.5">
+                    <div key={i} className="flex items-start gap-1.5 hover:bg-white/[0.02] px-1 py-0.5 rounded transition-colors">
                       <span className={
                         log.type === 'WARN' 
                           ? 'text-[#FF9F43] font-semibold' 
@@ -409,9 +437,9 @@ export default function RootLandingPage() {
                       </span>
                     </div>
                   ))}
-                  <div className="flex items-center gap-1 text-[#B8FF3D] pt-1">
+                  <div className="flex items-center gap-1 text-[#B8FF3D] pt-1 pl-1 font-mono">
                     <span>:...:</span>
-                    <span className="inline-block w-1.5 h-3 bg-[#B8FF3D] animate-pulse" />
+                    <span className="inline-block w-1.5 h-3 bg-[#B8FF3D] animate-cursor-blink" />
                   </div>
                 </div>
               </div>
@@ -426,17 +454,20 @@ export default function RootLandingPage() {
                   <span className="text-xs font-semibold text-[#F4F4F0]">Findings</span>
                   <button 
                     onClick={() => router.push('/chat')}
-                    className="text-[11px] text-[#A3A3A0] hover:text-white flex items-center gap-1"
+                    className="group text-[11px] text-[#A3A3A0] hover:text-white flex items-center gap-1 transition-colors"
                   >
                     <span>View all</span>
-                    <ArrowRight className="w-3 h-3" />
+                    <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                   </button>
                 </div>
 
                 <div className="space-y-2">
-                  <div className="p-2 rounded border border-[#222222] bg-[#111111] flex items-center justify-between">
+                  <div className="p-2 rounded border border-[#222222] bg-[#111111] hover:border-[#383838] hover:translate-x-0.5 transition-all duration-150 flex items-center justify-between cursor-pointer">
                     <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-[#FF5C5C]" />
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF5C5C] opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF5C5C]"></span>
+                      </span>
                       <div className="flex flex-col">
                         <span className="text-xs font-medium text-[#F4F4F0]">Possible SQL Injection</span>
                         <span className="text-[10px] font-mono text-[#686865]">/api/user</span>
@@ -445,7 +476,7 @@ export default function RootLandingPage() {
                     <span className="text-[10px] font-mono text-[#686865]">2m ago</span>
                   </div>
 
-                  <div className="p-2 rounded border border-[#222222] bg-[#111111] flex items-center justify-between">
+                  <div className="p-2 rounded border border-[#222222] bg-[#111111] hover:border-[#383838] hover:translate-x-0.5 transition-all duration-150 flex items-center justify-between cursor-pointer">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-[#FF9F43]" />
                       <div className="flex flex-col">
@@ -456,7 +487,7 @@ export default function RootLandingPage() {
                     <span className="text-[10px] font-mono text-[#686865]">5m ago</span>
                   </div>
 
-                  <div className="p-2 rounded border border-[#222222] bg-[#111111] flex items-center justify-between">
+                  <div className="p-2 rounded border border-[#222222] bg-[#111111] hover:border-[#383838] hover:translate-x-0.5 transition-all duration-150 flex items-center justify-between cursor-pointer">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-[#FFD166]" />
                       <div className="flex flex-col">
@@ -467,7 +498,7 @@ export default function RootLandingPage() {
                     <span className="text-[10px] font-mono text-[#686865]">8m ago</span>
                   </div>
 
-                  <div className="p-2 rounded border border-[#222222] bg-[#111111] flex items-center justify-between">
+                  <div className="p-2 rounded border border-[#222222] bg-[#111111] hover:border-[#383838] hover:translate-x-0.5 transition-all duration-150 flex items-center justify-between cursor-pointer">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-[#6EE7A0]" />
                       <div className="flex flex-col">
@@ -484,27 +515,34 @@ export default function RootLandingPage() {
               <div className="pt-3 mt-3 border-t border-[#1D1D1B]">
                 <div className="flex items-center justify-between text-xs mb-1.5">
                   <span className="font-mono text-[#686865]">TARGET: example.com</span>
-                  <span className="font-mono text-[#F4F4F0] font-semibold">42%</span>
+                  <span className="font-mono text-[#F4F4F0] font-semibold transition-all">
+                    {currentScan.progress}%
+                  </span>
                 </div>
 
-                <div className="w-full h-1.5 bg-[#1C1C1C] rounded-full overflow-hidden mb-3">
-                  <div className="h-full bg-[#F4F4F0] rounded-full" style={{ width: '42%' }} />
+                <div className="w-full h-1.5 bg-[#1C1C1C] rounded-full overflow-hidden mb-3 relative">
+                  <div 
+                    className="h-full bg-[#F4F4F0] rounded-full transition-all duration-700 ease-out relative"
+                    style={{ width: `${currentScan.progress}%` }}
+                  >
+                    <div className="absolute inset-0 bg-white/40 animate-shimmer" />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-4 gap-1 text-center font-mono text-[10px] mb-3">
-                  <div className="p-1 rounded bg-[#141414] border border-[#222222]">
+                  <div className="p-1 rounded bg-[#141414] border border-[#222222] hover:border-[#383838] transition-colors">
                     <span className="text-[#FF5C5C] font-bold block">1</span>
                     <span className="text-[#686865]">Critical</span>
                   </div>
-                  <div className="p-1 rounded bg-[#141414] border border-[#222222]">
+                  <div className="p-1 rounded bg-[#141414] border border-[#222222] hover:border-[#383838] transition-colors">
                     <span className="text-[#FF9F43] font-bold block">1</span>
                     <span className="text-[#686865]">High</span>
                   </div>
-                  <div className="p-1 rounded bg-[#141414] border border-[#222222]">
+                  <div className="p-1 rounded bg-[#141414] border border-[#222222] hover:border-[#383838] transition-colors">
                     <span className="text-[#FFD166] font-bold block">1</span>
                     <span className="text-[#686865]">Medium</span>
                   </div>
-                  <div className="p-1 rounded bg-[#141414] border border-[#222222]">
+                  <div className="p-1 rounded bg-[#141414] border border-[#222222] hover:border-[#383838] transition-colors">
                     <span className="text-[#6EE7A0] font-bold block">1</span>
                     <span className="text-[#686865]">Low</span>
                   </div>
@@ -512,7 +550,7 @@ export default function RootLandingPage() {
 
                 <button 
                   onClick={() => router.push('/chat')}
-                  className="w-full py-1.5 rounded border border-[#2A2A28] bg-[#161616] hover:bg-[#202020] text-xs font-medium text-[#F4F4F0] flex items-center justify-center gap-1.5 transition-colors"
+                  className="w-full py-1.5 rounded border border-[#2A2A28] bg-[#161616] hover:bg-[#202020] hover:border-[#383838] active:scale-98 text-xs font-medium text-[#F4F4F0] flex items-center justify-center gap-1.5 transition-all duration-150"
                 >
                   <FileText className="w-3.5 h-3.5" />
                   <span>Generate Report</span>
@@ -523,18 +561,18 @@ export default function RootLandingPage() {
 
           </div>
 
-          {/* Bottom 3 Feature Cards (Matching Image) */}
+          {/* Bottom 3 Feature Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 border-t border-[#1D1D1B] bg-[#0A0A0A]">
             
             <div 
               onClick={() => router.push('/chat')}
-              className="p-4 sm:p-5 border-b sm:border-b-0 sm:border-r border-[#1D1D1B] hover:bg-[#111111] transition-colors cursor-pointer group"
+              className="p-4 sm:p-5 border-b sm:border-b-0 sm:border-r border-[#1D1D1B] hover:bg-[#111111] transition-all duration-200 cursor-pointer group"
             >
               <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded border border-[#2A2A28] bg-[#141414] flex items-center justify-center">
+                <div className="w-8 h-8 rounded border border-[#2A2A28] bg-[#141414] group-hover:border-[#444] flex items-center justify-center transition-colors">
                   <Sparkles className="w-4 h-4 text-[#F4F4F0]" />
                 </div>
-                <ArrowRight className="w-4 h-4 text-[#686865] group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                <ArrowRight className="w-4 h-4 text-[#686865] group-hover:text-white group-hover:translate-x-1 transition-all duration-200" />
               </div>
               <h3 className="text-sm font-semibold text-[#F4F4F0] mb-1">AI Recommendations</h3>
               <p className="text-xs text-[#A3A3A0] leading-relaxed">
@@ -544,13 +582,13 @@ export default function RootLandingPage() {
 
             <div 
               onClick={() => router.push('/chat')}
-              className="p-4 sm:p-5 border-b sm:border-b-0 sm:border-r border-[#1D1D1B] hover:bg-[#111111] transition-colors cursor-pointer group"
+              className="p-4 sm:p-5 border-b sm:border-b-0 sm:border-r border-[#1D1D1B] hover:bg-[#111111] transition-all duration-200 cursor-pointer group"
             >
               <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded border border-[#2A2A28] bg-[#141414] flex items-center justify-center">
+                <div className="w-8 h-8 rounded border border-[#2A2A28] bg-[#141414] group-hover:border-[#444] flex items-center justify-center transition-colors">
                   <Terminal className="w-4 h-4 text-[#F4F4F0]" />
                 </div>
-                <ArrowRight className="w-4 h-4 text-[#686865] group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                <ArrowRight className="w-4 h-4 text-[#686865] group-hover:text-white group-hover:translate-x-1 transition-all duration-200" />
               </div>
               <h3 className="text-sm font-semibold text-[#F4F4F0] mb-1">Automate Your Workflow</h3>
               <p className="text-xs text-[#A3A3A0] leading-relaxed">
@@ -560,13 +598,13 @@ export default function RootLandingPage() {
 
             <div 
               onClick={() => router.push('/chat')}
-              className="p-4 sm:p-5 hover:bg-[#111111] transition-colors cursor-pointer group"
+              className="p-4 sm:p-5 hover:bg-[#111111] transition-all duration-200 cursor-pointer group"
             >
               <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded border border-[#2A2A28] bg-[#141414] flex items-center justify-center">
+                <div className="w-8 h-8 rounded border border-[#2A2A28] bg-[#141414] group-hover:border-[#444] flex items-center justify-center transition-colors">
                   <Shield className="w-4 h-4 text-[#F4F4F0]" />
                 </div>
-                <ArrowRight className="w-4 h-4 text-[#686865] group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                <ArrowRight className="w-4 h-4 text-[#686865] group-hover:text-white group-hover:translate-x-1 transition-all duration-200" />
               </div>
               <h3 className="text-sm font-semibold text-[#F4F4F0] mb-1">Built for Teams</h3>
               <p className="text-xs text-[#A3A3A0] leading-relaxed">
@@ -596,10 +634,10 @@ export default function RootLandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-[#2A2A28] border border-[#2A2A28] rounded-lg overflow-hidden">
             
-            <div className="bg-[#0D0D0D] p-6 sm:p-8 flex flex-col justify-between hover:bg-[#111111] transition-colors">
+            <div className="bg-[#0D0D0D] p-6 sm:p-8 flex flex-col justify-between hover:bg-[#111111] transition-colors group">
               <div>
                 <div className="font-mono text-xs text-[#686865] mb-3">01 / RECONNAISSANCE & OSINT</div>
-                <h3 className="text-lg font-bold text-[#F4F4F0] mb-2">Passive & Active Target Discovery</h3>
+                <h3 className="text-lg font-bold text-[#F4F4F0] mb-2 group-hover:text-white transition-colors">Passive & Active Target Discovery</h3>
                 <p className="text-sm text-[#A3A3A0] leading-relaxed">
                   Real-time subdomain mapping, passive DNS intelligence, TLS handshake inspection, open port fingerprinting, and technology stack profiling without triggering alarms.
                 </p>
@@ -610,10 +648,10 @@ export default function RootLandingPage() {
               </div>
             </div>
 
-            <div className="bg-[#0D0D0D] p-6 sm:p-8 flex flex-col justify-between hover:bg-[#111111] transition-colors">
+            <div className="bg-[#0D0D0D] p-6 sm:p-8 flex flex-col justify-between hover:bg-[#111111] transition-colors group">
               <div>
                 <div className="font-mono text-xs text-[#686865] mb-3">02 / CODE & API AUDITING</div>
-                <h3 className="text-lg font-bold text-[#F4F4F0] mb-2">Static AST & Dynamic API Fuzzing</h3>
+                <h3 className="text-lg font-bold text-[#F4F4F0] mb-2 group-hover:text-white transition-colors">Static AST & Dynamic API Fuzzing</h3>
                 <p className="text-sm text-[#A3A3A0] leading-relaxed">
                   Deep AST semantic analysis to spot SQL injection, Cross-Site Scripting (XSS), IDOR vulnerabilities, and OpenAPI contract fuzzing with zero false positives.
                 </p>
@@ -624,10 +662,10 @@ export default function RootLandingPage() {
               </div>
             </div>
 
-            <div className="bg-[#0D0D0D] p-6 sm:p-8 flex flex-col justify-between hover:bg-[#111111] transition-colors">
+            <div className="bg-[#0D0D0D] p-6 sm:p-8 flex flex-col justify-between hover:bg-[#111111] transition-colors group">
               <div>
                 <div className="font-mono text-xs text-[#686865] mb-3">03 / EXPLOIT PROOF & VERIFICATION</div>
-                <h3 className="text-lg font-bold text-[#F4F4F0] mb-2">Safe Proof-of-Concept Engine</h3>
+                <h3 className="text-lg font-bold text-[#F4F4F0] mb-2 group-hover:text-white transition-colors">Safe Proof-of-Concept Engine</h3>
                 <p className="text-sm text-[#A3A3A0] leading-relaxed">
                   Autonomous sandbox verification engine that crafts non-destructive exploit proofs to validate whether a vulnerability is genuinely exploitable in production.
                 </p>
@@ -638,10 +676,10 @@ export default function RootLandingPage() {
               </div>
             </div>
 
-            <div className="bg-[#0D0D0D] p-6 sm:p-8 flex flex-col justify-between hover:bg-[#111111] transition-colors">
+            <div className="bg-[#0D0D0D] p-6 sm:p-8 flex flex-col justify-between hover:bg-[#111111] transition-colors group">
               <div>
                 <div className="font-mono text-xs text-[#686865] mb-3">04 / AUTOMATED REMEDIATION PRS</div>
-                <h3 className="text-lg font-bold text-[#F4F4F0] mb-2">One-Click Patch & Code Diff</h3>
+                <h3 className="text-lg font-bold text-[#F4F4F0] mb-2 group-hover:text-white transition-colors">One-Click Patch & Code Diff</h3>
                 <p className="text-sm text-[#A3A3A0] leading-relaxed">
                   Generates ready-to-merge pull requests with fixed source code, hardened security headers (CSP, HSTS, CORS), and Dockerfile security hardening instantly.
                 </p>
@@ -668,22 +706,22 @@ export default function RootLandingPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[#2A2A28] border border-[#2A2A28] rounded-lg overflow-hidden text-center">
             
-            <div className="bg-[#0D0D0D] p-6">
+            <div className="bg-[#0D0D0D] p-6 hover:bg-[#111111] transition-colors">
               <div className="text-3xl sm:text-4xl font-bold font-mono text-[#F4F4F0] mb-1">12,000+</div>
               <div className="text-xs text-[#A3A3A0]">CVE Signatures & Patterns</div>
             </div>
 
-            <div className="bg-[#0D0D0D] p-6">
+            <div className="bg-[#0D0D0D] p-6 hover:bg-[#111111] transition-colors">
               <div className="text-3xl sm:text-4xl font-bold font-mono text-[#F4F4F0] mb-1">&lt; 45s</div>
               <div className="text-xs text-[#A3A3A0]">Average Scan Triage Latency</div>
             </div>
 
-            <div className="bg-[#0D0D0D] p-6">
+            <div className="bg-[#0D0D0D] p-6 hover:bg-[#111111] transition-colors">
               <div className="text-3xl sm:text-4xl font-bold font-mono text-[#F4F4F0] mb-1">99.4%</div>
               <div className="text-xs text-[#A3A3A0]">True-Positive Verification</div>
             </div>
 
-            <div className="bg-[#0D0D0D] p-6">
+            <div className="bg-[#0D0D0D] p-6 hover:bg-[#111111] transition-colors">
               <div className="text-3xl sm:text-4xl font-bold font-mono text-[#F4F4F0] mb-1">0</div>
               <div className="text-xs text-[#A3A3A0]">Data Retention / No LLM Training</div>
             </div>
@@ -707,16 +745,16 @@ export default function RootLandingPage() {
             <div className="flex rounded border border-[#2A2A28] bg-[#111111] p-0.5">
               <button
                 onClick={() => setActiveTab('vuln')}
-                className={`px-3 py-1 text-xs font-mono rounded transition-colors ${
-                  activeTab === 'vuln' ? 'bg-[#1F1F1F] text-white' : 'text-[#686865] hover:text-white'
+                className={`px-3 py-1 text-xs font-mono rounded transition-all duration-150 ${
+                  activeTab === 'vuln' ? 'bg-[#1F1F1F] text-white shadow-xs' : 'text-[#686865] hover:text-white'
                 }`}
               >
                 01 Vulnerability
               </button>
               <button
                 onClick={() => setActiveTab('patch')}
-                className={`px-3 py-1 text-xs font-mono rounded transition-colors ${
-                  activeTab === 'patch' ? 'bg-[#1F1F1F] text-white' : 'text-[#686865] hover:text-white'
+                className={`px-3 py-1 text-xs font-mono rounded transition-all duration-150 ${
+                  activeTab === 'patch' ? 'bg-[#1F1F1F] text-white shadow-xs' : 'text-[#686865] hover:text-white'
                 }`}
               >
                 02 Hardened Patch
@@ -724,7 +762,7 @@ export default function RootLandingPage() {
             </div>
           </div>
 
-          <div className="border border-[#2A2A28] bg-[#0C0C0C] rounded-lg overflow-hidden font-mono text-xs">
+          <div className="border border-[#2A2A28] bg-[#0C0C0C] rounded-lg overflow-hidden font-mono text-xs shadow-lg">
             <div className="border-b border-[#1D1D1B] bg-[#141414] px-4 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Code2 className="w-4 h-4 text-[#A3A3A0]" />
@@ -735,9 +773,9 @@ export default function RootLandingPage() {
               </span>
             </div>
 
-            <div className="p-4 sm:p-6 overflow-x-auto text-[12px] leading-relaxed">
+            <div className="p-4 sm:p-6 overflow-x-auto text-[12px] leading-relaxed transition-all">
               {activeTab === 'vuln' ? (
-                <div className="space-y-1">
+                <div className="space-y-1 animate-fade-in-up">
                   <div className="text-[#686865]">// [VULNERABILITY] Raw SQL Concatenation leads to direct SQL injection</div>
                   <div className="text-[#A3A3A0]">export async function getUser(req: Request) &#123;</div>
                   <div className="text-[#A3A3A0] pl-4">const &#123; id &#125; = req.query;</div>
@@ -749,7 +787,7 @@ export default function RootLandingPage() {
                   <div className="text-[#A3A3A0]">&#125;</div>
                 </div>
               ) : (
-                <div className="space-y-1">
+                <div className="space-y-1 animate-fade-in-up">
                   <div className="text-[#6EE7A0]">// [REMEDIATION] Parameterized Prepared Statements & Type Validation</div>
                   <div className="text-[#A3A3A0]">export async function getUser(req: Request) &#123;</div>
                   <div className="text-[#A3A3A0] pl-4">const parsedId = z.string().uuid().parse(req.query.id);</div>
@@ -768,7 +806,7 @@ export default function RootLandingPage() {
         </section>
 
         {/* Final Brutalist Call to Action */}
-        <section className="w-full max-w-5xl mx-auto mt-28 border border-[#2A2A28] bg-[#111111] rounded-xl p-8 sm:p-12 text-center relative overflow-hidden">
+        <section className="w-full max-w-5xl mx-auto mt-28 border border-[#2A2A28] bg-[#111111] rounded-xl p-8 sm:p-12 text-center relative overflow-hidden group hover:border-[#383838] transition-colors">
           <div className="relative z-10 max-w-2xl mx-auto">
             <h2 className="text-3xl sm:text-4xl font-bold text-[#F4F4F0] mb-3 tracking-tight">
               Ready to secure your perimeter?
@@ -779,10 +817,10 @@ export default function RootLandingPage() {
 
             <button
               onClick={() => router.push('/chat')}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#F4F4F0] text-[#090909] font-bold text-sm hover:bg-white transition-all shadow-lg select-none"
+              className="group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#F4F4F0] text-[#090909] font-bold text-sm hover:bg-white active:scale-95 transition-all shadow-lg select-none"
             >
               <span>Launch Kairo Workspace</span>
-              <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+              <ArrowRight className="w-4 h-4 stroke-[2.5] group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
         </section>
@@ -803,7 +841,10 @@ export default function RootLandingPage() {
               Autonomous cybersecurity AI copilot for modern defense teams.
             </p>
             <div className="flex items-center gap-2 font-mono text-[11px] text-[#A3A3A0] pt-2">
-              <span className="w-2 h-2 rounded-full bg-[#B8FF3D]" />
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#B8FF3D] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#B8FF3D]"></span>
+              </span>
               <span>SYSTEM OPERATIONAL (99.99%)</span>
               <span>•</span>
               <span>v2.4.0-prod</span>
@@ -815,18 +856,18 @@ export default function RootLandingPage() {
             <div>
               <div className="font-mono text-[#F4F4F0] mb-2 font-semibold">PRODUCT</div>
               <ul className="space-y-1.5">
-                <li><button onClick={() => router.push('/chat')} className="hover:text-[#F4F4F0]">Workstation</button></li>
-                <li><a href="#features" className="hover:text-[#F4F4F0]">Features</a></li>
-                <li><button onClick={() => setActiveModal('pricing')} className="hover:text-[#F4F4F0]">Pricing</button></li>
+                <li><button onClick={() => router.push('/chat')} className="hover:text-[#F4F4F0] transition-colors">Workstation</button></li>
+                <li><a href="#features" className="hover:text-[#F4F4F0] transition-colors">Features</a></li>
+                <li><button onClick={() => setActiveModal('pricing')} className="hover:text-[#F4F4F0] transition-colors">Pricing</button></li>
               </ul>
             </div>
 
             <div>
               <div className="font-mono text-[#F4F4F0] mb-2 font-semibold">SECURITY</div>
               <ul className="space-y-1.5">
-                <li><button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">Trust Center</button></li>
-                <li><a href="#capabilities" className="hover:text-[#F4F4F0]">CVE Database</a></li>
-                <li><button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">Privacy Policy</button></li>
+                <li><button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0] transition-colors">Trust Center</button></li>
+                <li><a href="#capabilities" className="hover:text-[#F4F4F0] transition-colors">CVE Database</a></li>
+                <li><button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0] transition-colors">Privacy Policy</button></li>
               </ul>
             </div>
 
@@ -845,20 +886,20 @@ export default function RootLandingPage() {
         <div className="max-w-7xl mx-auto pt-8 mt-8 border-t border-[#1D1D1B] flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[11px]">
           <div>© {new Date().getFullYear()} Kairo Security Inc. All rights reserved.</div>
           <div className="flex items-center gap-4">
-            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">TERMS</button>
-            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">PRIVACY</button>
-            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">RESPONSIBLE DISCLOSURE</button>
+            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0] transition-colors">TERMS</button>
+            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0] transition-colors">PRIVACY</button>
+            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0] transition-colors">RESPONSIBLE DISCLOSURE</button>
           </div>
         </div>
       </footer>
 
       {/* Pricing Modal */}
       {activeModal === 'pricing' && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in-up">
           <div className="bg-[#111111] border border-[#2A2A28] rounded-xl max-w-xl w-full p-6 text-[#F4F4F0] shadow-2xl relative">
             <button
               onClick={() => setActiveModal(null)}
-              className="absolute top-4 right-4 text-[#686865] hover:text-[#F4F4F0] p-1"
+              className="absolute top-4 right-4 text-[#686865] hover:text-[#F4F4F0] p-1 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -867,7 +908,7 @@ export default function RootLandingPage() {
             <p className="text-xs text-[#A3A3A0] mb-6">Autonomous vulnerability analysis tailored for security engineers.</p>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg bg-[#090909] border border-[#2A2A28]">
+              <div className="p-4 rounded-lg bg-[#090909] border border-[#2A2A28] hover:border-[#383838] transition-colors">
                 <h3 className="font-bold text-sm">Community</h3>
                 <p className="text-2xl font-bold my-2 font-mono">$0</p>
                 <ul className="text-xs text-[#A3A3A0] space-y-2 mb-4 font-sans">
@@ -877,13 +918,13 @@ export default function RootLandingPage() {
                 </ul>
                 <button
                   onClick={() => router.push('/chat')}
-                  className="w-full py-2 rounded bg-[#161616] border border-[#2A2A28] text-[#F4F4F0] text-xs font-semibold hover:bg-[#202020]"
+                  className="w-full py-2 rounded bg-[#161616] border border-[#2A2A28] text-[#F4F4F0] text-xs font-semibold hover:bg-[#202020] active:scale-98 transition-all"
                 >
                   Current Plan
                 </button>
               </div>
 
-              <div className="p-4 rounded-lg bg-[#141414] border border-[#F4F4F0]/30 relative">
+              <div className="p-4 rounded-lg bg-[#141414] border border-[#F4F4F0]/30 hover:border-[#F4F4F0]/60 transition-colors relative">
                 <span className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full bg-[#F4F4F0] text-[#090909] font-bold text-[10px]">
                   PRO
                 </span>
@@ -896,7 +937,7 @@ export default function RootLandingPage() {
                 </ul>
                 <button
                   onClick={() => router.push('/chat')}
-                  className="w-full py-2 rounded bg-[#F4F4F0] text-[#090909] text-xs font-bold hover:bg-white"
+                  className="w-full py-2 rounded bg-[#F4F4F0] text-[#090909] text-xs font-bold hover:bg-white active:scale-98 transition-all"
                 >
                   Get Started
                 </button>
@@ -908,11 +949,11 @@ export default function RootLandingPage() {
 
       {/* Trust & Security Modal */}
       {activeModal === 'trust' && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in-up">
           <div className="bg-[#111111] border border-[#2A2A28] rounded-xl max-w-md w-full p-6 text-[#F4F4F0] shadow-2xl relative">
             <button
               onClick={() => setActiveModal(null)}
-              className="absolute top-4 right-4 text-[#686865] hover:text-[#F4F4F0] p-1"
+              className="absolute top-4 right-4 text-[#686865] hover:text-[#F4F4F0] p-1 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
