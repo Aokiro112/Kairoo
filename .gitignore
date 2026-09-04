@@ -1,0 +1,127 @@
+# ==========================================
+# HackerAI - Git Ignore Configuration
+# ==========================================
+
+# 1. Environment & Secrets (CRITICAL)
+# ------------------------------------------
+.env
+.env.*
+*.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+Backend/.env
+Database/.env
+Frontend/.env
+Frontend/.env.local
+!*.env.example
+!*.env.template
+
+# 2. Dependencies & Package Managers
+# ------------------------------------------
+node_modules/
+*/node_modules/
+Frontend/node_modules/
+Backend/node_modules/
+Database/node_modules/
+jspm_packages/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnpm-store
+
+# 3. Next.js & Frontend Build Artifacts
+# ------------------------------------------
+.next/
+Frontend/.next/
+out/
+Frontend/out/
+*.tsbuildinfo
+Frontend/*.tsbuildinfo
+.turbo/
+
+# 4. TypeScript & Backend Build Outputs
+# ------------------------------------------
+dist/
+Backend/dist/
+Database/dist/
+build/
+*.js.map
+*.d.ts.map
+
+# 5. Databases & Local Persistent Storage
+# ------------------------------------------
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+dev.db
+Database/prisma/dev.db
+Database/prisma/dev.db-journal
+Backend/prisma/dev.db
+
+# 6. Python & Security Engine Artifacts
+# ------------------------------------------
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# 7. Logs, Debug & Runtime Files
+# ------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.system_generated/
+*.pid
+*.seed
+*.pid.lock
+
+# 8. Testing & Coverage
+# ------------------------------------------
+coverage/
+.nyc_output/
+*.lcov
+
+# 9. IDE, OS & System Files
+# ------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# Editors
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-workspace
+*.sublime-project
+.idea/
+*.swp
+*.swo
+*~
+*.bak

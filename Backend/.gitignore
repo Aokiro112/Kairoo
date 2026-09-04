@@ -1,0 +1,21 @@
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+
+# Env & Secrets
+.env*
+!.env.example
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS / Logs
+.DS_Store
+*.log
+npm-debug.log*

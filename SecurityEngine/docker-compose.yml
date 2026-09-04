@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  security-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hackerai-security-engine
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    network_mode: bridge
+    volumes:
+      - /tmp/hackerai_scans:/workspace/scans

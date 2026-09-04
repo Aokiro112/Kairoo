@@ -1,0 +1,54 @@
+export type ToolType = 'search' | 'link' | 'terminal' | 'scan' | 'exploit';
+
+export interface ToolCall {
+  id: string;
+  type: ToolType;
+  label: string;
+  query?: string;
+  url?: string;
+  status: 'completed' | 'running' | 'failed';
+  resultDetails?: {
+    statusCode?: number;
+    matchedResults?: string[];
+    responseTime?: string;
+    rawOutput?: string;
+  };
+}
+
+export type StepType = 'reasoning' | 'tool_group' | 'collapsed_reasoning' | 'finding_header';
+
+export interface AssistantStep {
+  id: string;
+  type: StepType;
+  text?: string;
+  tools?: ToolCall[];
+  duration?: string;
+  isExpanded?: boolean;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content?: string;
+  urlPreview?: string;
+  steps?: AssistantStep[];
+  timestamp: string;
+}
+
+export interface TaskSession {
+  id: string;
+  title: string;
+  category?: string;
+  projectId?: string;
+  messages: ChatMessage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  targetDomain?: string;
+  createdAt: string;
+}
