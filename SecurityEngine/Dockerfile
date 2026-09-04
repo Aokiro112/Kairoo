@@ -1,6 +1,6 @@
 FROM alpine:3.21
 
-LABEL maintainer="HackerAI Dark Security Engine"
+LABEL maintainer="Reindeer Security Engine"
 LABEL description="Dedicated security container with Nmap, Subfinder, HTTPX, Wafw00f, Nuclei, and Semgrep"
 
 # 1. Install base utilities, network tools, python, and compilers

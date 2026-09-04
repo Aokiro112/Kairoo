@@ -105,7 +105,7 @@ export async function* runSecurityAgentStream(
     const fallbackReport = `### 🛡️ Security Audit & Reconnaissance Summary
 
 **Target Asset**: \`${targetDomain || 'Local Analysis'}\`  
-**Assessment Engine**: HackerAI Native Security Matrix  
+**Assessment Engine**: Reindeer Native Security Matrix  
 **Status**: Completed (${executedTools.length} diagnostic tool passes)
 
 ---

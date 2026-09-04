@@ -198,7 +198,7 @@ export async function executeSecurityTool(
       try {
         const res = await fetch(url, {
           method: 'GET',
-          headers: { 'User-Agent': 'Mozilla/5.0 HackerAI-WAF-Probe/1.0' },
+          headers: { 'User-Agent': 'Mozilla/5.0 Reindeer-WAF-Probe/1.0' },
           signal: AbortSignal.timeout(5000),
         });
 
@@ -486,7 +486,7 @@ export async function executeSecurityTool(
         const res = await fetch(url, {
           method: 'GET',
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) HackerAI-Security-Auditor/1.0',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Reindeer-Security-Auditor/1.0',
           },
           redirect: 'follow',
           signal: AbortSignal.timeout(6000),

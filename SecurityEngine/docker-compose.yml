@@ -5,10 +5,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: hackerai-security-engine
+    container_name: reindeer-security-engine
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     network_mode: bridge
     volumes:
-      - /tmp/hackerai_scans:/workspace/scans
+      - /tmp/reindeer_scans:/workspace/scans

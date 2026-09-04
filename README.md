@@ -1,4 +1,4 @@
-# 🛡️ HackerAI Dark — Autonomous Cybersecurity AI Copilot
+# 🛡️ Reindeer — Autonomous Cybersecurity AI Copilot
 
 [![Next.js 15](https://img.shields.io/badge/Next.js-15.5-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
@@ -7,7 +7,7 @@
 [![Prisma](https://img.shields.io/badge/Prisma-SQLite-2D3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
 [![Docker](https://img.shields.io/badge/Docker-Kali_Sandbox-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
 
-> **HackerAI Dark** is an autonomous cybersecurity AI copilot and vulnerability scanning workspace. Powered by Groq's high-speed inference (Llama 3 70B/8B), an autonomous **ReAct (Reasoning + Action)** agent engine, and a sandboxed security toolkit, it assists penetration testers, bug bounty hunters, and security engineers in discovering, analyzing, and remediating vulnerabilities in real time.
+> **Reindeer** is an autonomous cybersecurity AI copilot and vulnerability scanning workspace. Powered by Groq's high-speed inference (Llama 3 70B/8B), an autonomous **ReAct (Reasoning + Action)** agent engine, and a sandboxed security toolkit, it assists penetration testers, bug bounty hunters, and security engineers in discovering, analyzing, and remediating vulnerabilities in real time.
 
 ---
 
@@ -33,7 +33,7 @@
 
 ## 🎯 Overview & Purpose
 
-Modern security assessments require coordinating multiple command-line utilities (reconnaissance, port scanning, header inspection, CVE matching) and synthesizing dense outputs. **HackerAI Dark** bridges this gap:
+Modern security assessments require coordinating multiple command-line utilities (reconnaissance, port scanning, header inspection, CVE matching) and synthesizing dense outputs. **Reindeer** bridges this gap:
 
 1. **Autonomous Intelligence**: You provide a target domain or security query; the AI reasons step-by-step, autonomously executes appropriate security tools, inspects the results, and performs follow-up scans.
 2. **Real-Time Transparency**: Live Server-Sent Events (SSE) stream the AI's internal chain of thought (`Thinking...`), tool execution pills (`Scanning ports`, `WAF detection`), and structured vulnerability findings.
@@ -217,7 +217,7 @@ cd SecurityEngine
 docker compose up -d --build
 cd ..
 ```
-> *Note: If Docker is not running, HackerAI will automatically use its built-in native socket & DNS fallback engines without failing.*
+> *Note: If Docker is not running, Reindeer will automatically use its built-in native socket & DNS fallback engines without failing.*
 
 ---
 
@@ -277,7 +277,7 @@ Now open **`http://localhost:3000`** in your browser.
 
 ## 🎨 Design System
 
-HackerAI Dark uses a tailored monochrome design system inspired by top cybersecurity developer tools:
+Reindeer uses a tailored monochrome design system inspired by top cybersecurity developer tools:
 
 | Element | Color Token | Hex Code |
 | :--- | :--- | :--- |
@@ -295,6 +295,6 @@ HackerAI Dark uses a tailored monochrome design system inspired by top cybersecu
 ## ⚖️ Legal & Responsible Disclosure
 
 > **WARNING / DISCLAIMER**:
-> HackerAI Dark is engineered strictly for authorized security auditing, educational research, defensive hardening, and authorized penetration testing. 
+> Reindeer is engineered strictly for authorized security auditing, educational research, defensive hardening, and authorized penetration testing. 
 > 
 > Scanning, probing, or attacking systems without prior explicit written permission is strictly prohibited by law. Always adhere to responsible disclosure guidelines and obtain proper authorization before targeting any third-party infrastructure.

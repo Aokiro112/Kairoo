@@ -38,7 +38,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 }) => {
   const [input, setInput] = useState('');
   const [mode, setMode] = useState('Ask');
-  const [target, setTarget] = useState('HackerAI Desktop');
+  const [target, setTarget] = useState('Reindeer Desktop');
   const [modelId, setModelId] = useState('openai/gpt-oss-120b');
 
   const [openDropdown, setOpenDropdown] = useState<'plus' | 'mode' | 'target' | 'model' | null>(null);
@@ -190,7 +190,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
               {openDropdown === 'target' && (
                 <div className="absolute bottom-9 left-0 w-52 bg-[#1C1C1C] border border-[#333333] rounded-[12px] shadow-xl p-1 z-40 text-xs space-y-0.5">
-                  {['HackerAI Desktop', 'Custom URL Target', 'Local Workspace'].map((t) => (
+                  {['Reindeer Desktop', 'Custom URL Target', 'Local Workspace'].map((t) => (
                     <button
                       key={t}
                       onClick={() => {

@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HackerAI — Advanced Security & AI Research Assistant",
-  description: "A stark, security-focused dark interface with high-contrast typography and restrained interactive chrome.",
+  title: "Reindeer — Advanced Security & AI Research Assistant",
+  description:
+    "Find and fix vulnerabilities by working with Reindeer, the autonomous cybersecurity AI copilot.",
 };
 
 export default function RootLayout({
