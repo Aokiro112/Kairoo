@@ -22,6 +22,8 @@ import {
   RotateCw
 } from 'lucide-react';
 import { HackerAILogo } from '@/components/HackerAILogo';
+import { Navbar } from '@/components/Navbar';
+import { Footer } from '@/components/Footer';
 
 const PLACEHOLDER_PROMPTS = [
   'Scan my API for vulnerabilities',
@@ -163,59 +165,7 @@ export default function RootLandingPage() {
       </div>
 
       {/* Top Navigation Bar */}
-      <header className="w-full border-b border-[#1D1D1B] bg-[#090909]/90 backdrop-blur-md sticky top-0 z-40 transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
-          {/* Logo & Links */}
-          <div className="flex items-center gap-8">
-            <div 
-              onClick={() => router.push('/')}
-              className="flex items-center gap-3 cursor-pointer group select-none"
-            >
-              <HackerAILogo className="w-6 h-6 text-[#F4F4F0] group-hover:scale-105 transition-transform duration-200" />
-              <span className="text-xl font-bold tracking-tight text-[#F4F4F0] font-sans">
-                Kairo
-              </span>
-              <span className="hidden sm:inline-block text-[#2A2A28] font-light">|</span>
-            </div>
-
-            <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#A3A3A0]">
-              <button onClick={() => router.push('/chat')} className="hover:text-[#F4F4F0] transition-colors">
-                Product
-              </button>
-              <a href="#features" className="hover:text-[#F4F4F0] transition-colors">
-                Features
-              </a>
-              <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0] transition-colors">
-                Security
-              </button>
-              <button onClick={() => setActiveModal('pricing')} className="hover:text-[#F4F4F0] transition-colors">
-                Pricing
-              </button>
-              <a href="#inspection" className="hover:text-[#F4F4F0] transition-colors">
-                Docs
-              </a>
-            </nav>
-          </div>
-
-          {/* Right CTA buttons */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/chat')}
-              className="text-sm font-medium text-[#A3A3A0] hover:text-[#F4F4F0] transition-colors px-2 py-1"
-            >
-              Sign in
-            </button>
-
-            <button
-              onClick={() => router.push('/chat')}
-              className="group inline-flex items-center justify-center gap-2 h-9 px-4 rounded-full bg-[#F4F4F0] text-[#090909] font-semibold text-sm hover:bg-white active:scale-95 transition-all shadow-xs"
-            >
-              <span>Get started</span>
-              <ArrowRight className="w-3.5 h-3.5 stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Main Content Body */}
       <main className="flex-1 flex flex-col items-center justify-start w-full relative z-10 px-4 sm:px-6 pt-16 sm:pt-20 pb-24">
@@ -850,70 +800,7 @@ export default function RootLandingPage() {
       </main>
 
       {/* Brutalist Footer */}
-      <footer className="w-full border-t border-[#1D1D1B] bg-[#090909] py-12 px-4 sm:px-8 text-xs text-[#686865] relative z-10">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-          
-          {/* Brand & System Status */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-[#F4F4F0] font-bold text-sm">
-              <HackerAILogo className="w-4 h-4 text-[#F4F4F0]" />
-              <span>Kairo</span>
-            </div>
-            <p className="text-[#A3A3A0] text-xs max-w-xs">
-              Autonomous cybersecurity AI copilot for modern defense teams.
-            </p>
-            <div className="flex items-center gap-2 font-mono text-[11px] text-[#A3A3A0] pt-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#B8FF3D] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#B8FF3D]"></span>
-              </span>
-              <span>SYSTEM OPERATIONAL (99.99%)</span>
-              <span>•</span>
-              <span>v2.4.0-prod</span>
-            </div>
-          </div>
-
-          {/* Links Grid */}
-          <div className="grid grid-cols-3 gap-8 text-xs">
-            <div>
-              <div className="font-mono text-[#F4F4F0] mb-2 font-semibold">PRODUCT</div>
-              <ul className="space-y-1.5">
-                <li><button onClick={() => router.push('/chat')} className="hover:text-[#F4F4F0]">Workstation</button></li>
-                <li><a href="#features" className="hover:text-[#F4F4F0]">Features</a></li>
-                <li><button onClick={() => setActiveModal('pricing')} className="hover:text-[#F4F4F0]">Pricing</button></li>
-              </ul>
-            </div>
-
-            <div>
-              <div className="font-mono text-[#F4F4F0] mb-2 font-semibold">SECURITY</div>
-              <ul className="space-y-1.5">
-                <li><button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">Trust Center</button></li>
-                <li><a href="#inspection" className="hover:text-[#F4F4F0]">Code Diff</a></li>
-                <li><button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">Privacy Policy</button></li>
-              </ul>
-            </div>
-
-            <div>
-              <div className="font-mono text-[#F4F4F0] mb-2 font-semibold">SYSTEM</div>
-              <ul className="space-y-1.5 font-mono text-[11px]">
-                <li>NODE / 001</li>
-                <li>26.9124° N</li>
-                <li>75.7873° E</li>
-              </ul>
-            </div>
-          </div>
-
-        </div>
-
-        <div className="max-w-7xl mx-auto pt-8 mt-8 border-t border-[#1D1D1B] flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[11px]">
-          <div>© {new Date().getFullYear()} Kairo Security Inc. All rights reserved.</div>
-          <div className="flex items-center gap-4">
-            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">TERMS</button>
-            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">PRIVACY</button>
-            <button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">RESPONSIBLE DISCLOSURE</button>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {/* Pricing Modal */}
       {activeModal === 'pricing' && (
