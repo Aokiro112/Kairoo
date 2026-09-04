@@ -16,11 +16,11 @@ const ibmPlexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://kairo.bond'),
-  title: 'Kairo — Autonomous AI Cybersecurity Copilot & Pentesting Workstation',
+  title: 'Kairo | Autonomous AI Cybersecurity Copilot & Pentesting Workstation',
   description:
     'Find vulnerabilities. Fix them faster. Autonomous AI copilot for penetration testing, vulnerability research, and secure development.',
   openGraph: {
-    title: 'Kairo — Autonomous AI Cybersecurity Copilot',
+    title: 'Kairo | Autonomous AI Cybersecurity Copilot',
     description: 'Find vulnerabilities. Fix them faster. Autonomous AI copilot for offensive security and code auditing.',
     url: 'https://kairo.bond',
     siteName: 'Kairo',
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Kairo — Autonomous AI Cybersecurity Copilot',
+    title: 'Kairo | Autonomous AI Cybersecurity Copilot',
     description: 'Find vulnerabilities. Fix them faster. Autonomous AI copilot for offensive security.',
   },
 };

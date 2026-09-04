@@ -1,4 +1,4 @@
-# 🛡️ Kairo — Autonomous Cybersecurity AI Copilot
+# 🛡️ Kairo | Autonomous Cybersecurity AI Copilot
 
 [![Next.js 15](https://img.shields.io/badge/Next.js-15.5-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)

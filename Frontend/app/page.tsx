@@ -35,7 +35,7 @@ const SCAN_STAGES = [
   { progress: 42, stage: 'Enumerating endpoints...', target: 'https://example.com' },
   { progress: 68, stage: 'Fuzzing SQLi & API parameters...', target: 'https://example.com' },
   { progress: 85, stage: 'Verifying exploit proofs...', target: 'https://example.com' },
-  { progress: 100, stage: 'Audit finalized — 4 findings', target: 'https://example.com' },
+  { progress: 100, stage: 'Audit finalized: 4 findings', target: 'https://example.com' },
 ];
 
 const TERMINAL_LOGS = [
@@ -48,7 +48,7 @@ const TERMINAL_LOGS = [
   { type: 'WARN', text: 'Potential SQL injection detected at /api/user?id=' },
   { type: 'INFO', text: 'Checking for misconfigurations in CORS & CSP...' },
   { type: 'INFO', text: 'Enumerating technologies: Next.js, Node, PostgreSQL' },
-  { type: 'INFO', text: 'Scan in progress — 42% completed' },
+  { type: 'INFO', text: 'Scan in progress: 42% completed' },
 ];
 
 export default function RootLandingPage() {
@@ -278,7 +278,7 @@ export default function RootLandingPage() {
             transition={{ duration: 0.7, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
             className="text-base sm:text-lg text-[#A3A3A0] max-w-2xl mx-auto leading-relaxed"
           >
-            Autonomous AI copilot for penetration testing, vulnerability research and secure development — built for individuals and teams who take security seriously.
+            Autonomous AI copilot for penetration testing, vulnerability research and secure development, built for individuals and teams who take security seriously.
           </motion.p>
         </div>
 
@@ -650,7 +650,7 @@ export default function RootLandingPage() {
               </div>
               <h3 className="text-sm font-semibold text-[#F4F4F0] mb-1">Automate Your Workflow</h3>
               <p className="text-xs text-[#A3A3A0] leading-relaxed">
-                Run scans, generate reports and track remediation progress — all in one place.
+                Run scans, generate reports and track remediation progress, all in one place.
               </p>
             </div>
 
@@ -679,7 +679,7 @@ export default function RootLandingPage() {
           <div className="border-b border-[#2A2A28] pb-4 mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
             <div>
               <div className="text-xs font-mono tracking-widest text-[#686865] uppercase mb-1">
-                SYSTEM / 01 — CAPABILITIES
+                SYSTEM / 01 : CAPABILITIES
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold text-[#F4F4F0]">
                 Engineered for deep offensive security & rapid defense.

@@ -153,7 +153,7 @@ HackerAI feels like a focused security tool rather than a consumer lifestyle bra
 - **Overlay (#000000):** Use for modal scrims and deep shadow coloration when an even darker layer is needed.
 
 ## Typography
-Geist is the single typeface across the experience, which reinforces the modern, technical tone. Headings are bold and compact, with the main hero using `headline-display` at 48px/48px to feel assertive and precise. Body copy uses lighter weights and comfortable line heights for readability, while labels and buttons rely on 14px–16px medium weights to stay legible without competing with the hero.
+Geist is the single typeface across the experience, which reinforces the modern, technical tone. Headings are bold and compact, with the main hero using `headline-display` at 48px/48px to feel assertive and precise. Body copy uses lighter weights and comfortable line heights for readability, while labels and buttons rely on 14px-16px medium weights to stay legible without competing with the hero.
 
 The system is clean and mostly neutral in letter-spacing, with no visible uppercase tracking treatment in the screenshot. That keeps the product approachable and functional rather than editorial or ornamental. Links and utility text should remain modest and readable, with no exaggerated typographic contrast beyond size and weight.
 
