@@ -1,7 +1,7 @@
-import Groq from 'groq-sdk';
 import dotenv from 'dotenv';
 import { SECURITY_AGENT_SYSTEM_PROMPT } from './systemPrompt';
 import { SECURITY_AGENT_TOOLS, executeSecurityTool, ToolCall } from './tools';
+import { groqKeyManager } from './groqKeyManager';
 
 dotenv.config();
 
@@ -10,34 +10,37 @@ export interface StreamEvent {
   data?: any;
 }
 
-export const getGroqClient = () => {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey || apiKey.trim() === '') {
-    return null;
-  }
-  return new Groq({ apiKey });
+const MODEL_ALIAS_MAP: Record<string, string> = {
+  'openai/gpt-oss-120b': 'llama-3.3-70b-versatile',
+  'qwen/qwen3.8-27b': 'llama-3.3-70b-versatile',
+  'openai/gpt-oss-20b': 'llama-3.1-8b-instant',
+  'qwen/qwen3.6-27b': 'llama-3.1-8b-instant',
+  'llama-3.3-70b-versatile': 'llama-3.3-70b-versatile',
+  'llama-3.1-70b-versatile': 'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant': 'llama-3.1-8b-instant',
+  'deepseek-r1-distill-llama-70b': 'deepseek-r1-distill-llama-70b',
+  'mixtral-8x7b-32768': 'mixtral-8x7b-32768',
 };
 
-const VALID_MODELS: Record<string, string> = {
-  'openai/gpt-oss-120b': 'openai/gpt-oss-120b',
-  'qwen/qwen3.8-27b': 'qwen/qwen3.8-27b',
-  'openai/gpt-oss-20b': 'openai/gpt-oss-20b',
-  'qwen/qwen3.6-27b': 'qwen/qwen3.6-27b',
+export const resolveModel = (requestedModel?: string): string => {
+  if (!requestedModel) return 'llama-3.3-70b-versatile';
+  return MODEL_ALIAS_MAP[requestedModel] || requestedModel;
 };
 
 export async function* runSecurityAgentStream(
   messages: Array<{ role: string; content: string }>,
-  model: string = 'openai/gpt-oss-120b'
+  model: string = 'llama-3.3-70b-versatile'
 ): AsyncGenerator<StreamEvent> {
-  const groq = getGroqClient();
-  const activeModel = VALID_MODELS[model] || 'openai/gpt-oss-120b';
+  const activeModel = resolveModel(model);
 
   const lastUserMsg = messages[messages.length - 1]?.content || '';
-  const urlMatch = lastUserMsg.match(/https?:\/\/([^\/\s]+)/) || lastUserMsg.match(/([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+  const urlMatch =
+    lastUserMsg.match(/https?:\/\/([^\/\s]+)/) ||
+    lastUserMsg.match(/([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
   const targetDomain = urlMatch ? urlMatch[1] : null;
 
-  // Fallback autonomous execution if Groq API key is not configured
-  if (!groq) {
+  // Fallback autonomous execution if no Groq API keys are loaded
+  if (!groqKeyManager.hasKeys()) {
     yield {
       type: 'reasoning',
       data: {
@@ -45,7 +48,7 @@ export async function* runSecurityAgentStream(
         type: 'reasoning',
         text: targetDomain
           ? `Target domain \`${targetDomain}\` identified. Initiating non-destructive passive reconnaissance, TLS inspection, and HTTP security header analysis.`
-          : `Analyzing query and conducting security audit reasoning loop. (Note: Add your \`GROQ_API_KEY\` to \`Backend/.env\` to enable live custom Groq LLM streaming).`,
+          : `Analyzing query and conducting security audit reasoning loop. (Note: Add your \`GROQ_API_KEYS\` to \`Backend/.env\` to enable live custom Groq LLM streaming).`,
       },
     };
 
@@ -53,73 +56,88 @@ export async function* runSecurityAgentStream(
 
     if (targetDomain) {
       try {
-        const wafRes = await executeSecurityTool('waf_detection_wafw00f', { targetUrl: `https://${targetDomain}` });
+        const wafRes = await executeSecurityTool('waf_detection_wafw00f', {
+          targetUrl: `https://${targetDomain}`,
+        });
         executedTools.push(wafRes.toolCall);
       } catch (e) {}
 
       try {
-        const dnsRes = await executeSecurityTool('passive_dns_recon', { domain: targetDomain });
+        const headersRes = await executeSecurityTool('analyze_security_headers', {
+          targetUrl: `https://${targetDomain}`,
+        });
+        executedTools.push(headersRes.toolCall);
+      } catch (e) {}
+
+      try {
+        const dnsRes = await executeSecurityTool('passive_dns_recon', {
+          domain: targetDomain,
+        });
         executedTools.push(dnsRes.toolCall);
       } catch (e) {}
 
       try {
-        const headerRes = await executeSecurityTool('analyze_security_headers', { targetUrl: `https://${targetDomain}` });
-        executedTools.push(headerRes.toolCall);
-      } catch (e) {}
-
-      try {
-        const tlsRes = await executeSecurityTool('ssl_tls_certificate_audit', { domain: targetDomain });
+        const tlsRes = await executeSecurityTool('ssl_tls_certificate_audit', {
+          domain: targetDomain,
+        });
         executedTools.push(tlsRes.toolCall);
       } catch (e) {}
-
-      if (executedTools.length > 0) {
-        yield {
-          type: 'tool_group',
-          data: {
-            id: `step-tools-${Date.now()}`,
-            type: 'tool_group',
-            tools: executedTools,
-          },
-        };
-      }
+    } else {
+      try {
+        const codeAudit = await executeSecurityTool('sast_code_security_audit', {
+          codeSnippet: lastUserMsg,
+        });
+        executedTools.push(codeAudit.toolCall);
+      } catch (e) {}
     }
 
-    const report = targetDomain
-      ? `### 🎯 Security Posture & Vulnerability Matrix: \`${targetDomain}\`
+    if (executedTools.length > 0) {
+      yield {
+        type: 'tool_group',
+        data: {
+          id: `step-tools-${Date.now()}`,
+          type: 'tool_group',
+          tools: executedTools,
+        },
+      };
+    }
 
-| # | Vulnerability / Finding | Severity | Affected Endpoint / Parameter | Impact & Recommended Remediation |
-|---|---|---|---|---|
-| 1 | **Missing Modern Security Headers** | <span class="text-amber-400 font-semibold">MEDIUM</span> | Root & Subdomains | Missing \`Content-Security-Policy\` and \`X-Frame-Options\` (Clickjacking exposure). |
-| 2 | **Email Spoofing Posture (SPF/DMARC)** | <span class="text-amber-400 font-semibold">MEDIUM</span> | \`_dmarc.${targetDomain}\` | Verify strict reject/quarantine policy to prevent brand spoofing. |
-| 3 | **TLS/SSL Encryption & SAN Enumeration** | <span class="text-emerald-400 font-semibold">INFO</span> | Port 443 | Valid certificate configured. Review exposed SAN subdomains for legacy assets. |
+    const fallbackReport = `### 🛡️ Security Audit & Reconnaissance Summary
+
+**Target Asset**: \`${targetDomain || 'Local Analysis'}\`  
+**Assessment Engine**: HackerAI Native Security Matrix  
+**Status**: Completed (${executedTools.length} diagnostic tool passes)
 
 ---
 
-### 🛡️ Recommended Security Header Hardening:
-\`\`\`http
-Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-X-Frame-Options: SAMEORIGIN
-X-Content-Type-Options: nosniff
-Content-Security-Policy: default-src 'self' https:;
-Referrer-Policy: strict-origin-when-cross-origin
-\`\`\`
+#### 1. Executive Summary & Attack Surface
+During automated passive assessment, multiple diagnostic probes were executed across HTTP headers, DNS infrastructure, and TLS configurations.
 
-> 💡 **Tip**: To enable continuous multi-turn AI reasoning with \`OpenAI GPT OSS 120B\` and \`Qwen 3.8\`, paste your API key into \`Backend/.env\` (\`GROQ_API_KEY="gsk_..."\`).`
-      : `### 🛡️ Security Analysis & Guidance
+| Diagnostic Tool | Scope | Status | Key Observation |
+| :--- | :--- | :--- | :--- |
+${executedTools
+  .map(
+    (t) =>
+      `| \`${t.label}\` | \`${t.query || targetDomain || 'Inspection'}\` | **${t.status.toUpperCase()}** | ${
+        t.resultDetails?.matchedResults?.[0] || 'Inspection completed successfully'
+      } |`
+  )
+  .join('\n')}
 
-I have processed your security request. For live autonomous tool execution and exploit analysis on custom code or targets, ensure your **GROQ_API_KEY** is configured in \`Backend/.env\`.
+---
 
-**Key Security Principles for this Task:**
-1. Always test with authorized written consent.
-2. Validate input and sanitize output to prevent injection attacks (CWE-89 / CWE-79).
-3. Implement Least Privilege on all API endpoints and database service roles.`;
+#### 2. Key Hardening Recommendations
+1. **Strict-Transport-Security (HSTS)**: Ensure HSTS is enforced with \`max-age=31536000; includeSubDomains; preload\`.
+2. **Content-Security-Policy (CSP)**: Deploy restrictive CSP rules forbidding \`unsafe-inline\` and \`unsafe-eval\`.
+3. **WAF & Rate Limiting**: Ensure origin servers are masked behind Cloudflare / AWS WAF with aggressive anti-scraping rules enabled.
+`;
 
-    yield { type: 'content_chunk', data: report };
+    yield { type: 'content_chunk', data: fallbackReport };
     yield { type: 'done' };
     return;
   }
 
-  // Live Multi-Turn ReAct Agent Execution
+  // Live Multi-Turn ReAct Agent Execution with Groq Multi-Key Rotation Pool
   try {
     const groqTools: any[] = SECURITY_AGENT_TOOLS.map((t) => ({
       type: 'function',
@@ -130,6 +148,7 @@ I have processed your security request. For live autonomous tool execution and e
       },
     }));
 
+    // Complete conversation context (all past user, assistant, system prompts)
     const conversationHistory: any[] = [
       { role: 'system', content: SECURITY_AGENT_SYSTEM_PROMPT },
       ...messages.map((m) => ({ role: m.role, content: m.content || '' })),
@@ -141,8 +160,8 @@ I have processed your security request. For live autonomous tool execution and e
         id: `step-reasoning-${Date.now()}`,
         type: 'reasoning',
         text: targetDomain
-          ? `Target \`${targetDomain}\` detected. Planning diagnostic reconnaissance workflow with \`${activeModel}\`.`
-          : `Analyzing query and formulating cybersecurity assessment with \`${activeModel}\`.`,
+          ? `Target \`${targetDomain}\` detected. Planning diagnostic reconnaissance workflow with \`${activeModel}\` (Auto Key Rotation Active).`
+          : `Analyzing query and formulating cybersecurity assessment with \`${activeModel}\` (Auto Key Rotation Active).`,
       },
     };
 
@@ -153,20 +172,27 @@ I have processed your security request. For live autonomous tool execution and e
     while (loopCount < maxLoops) {
       loopCount++;
 
-      const response = await groq.chat.completions.create({
-        model: activeModel,
-        messages: conversationHistory,
-        tools: groqTools,
-        tool_choice: 'auto',
-        temperature: 0.2,
-        max_tokens: 3072,
-      });
+      // Execute Chat Completion with automatic multi-key failover if rate limited
+      const response = await groqKeyManager.executeWithRotation(
+        `ReAct Step #${loopCount}`,
+        async (groqClient) => {
+          return await groqClient.chat.completions.create({
+            model: activeModel,
+            messages: conversationHistory,
+            tools: groqTools,
+            tool_choice: 'auto',
+            temperature: 0.2,
+            max_tokens: 3072,
+          });
+        }
+      );
 
       const choice = response.choices[0];
       const toolCalls = choice?.message?.tool_calls;
       const content = choice?.message?.content || '';
 
       if (toolCalls && toolCalls.length > 0) {
+        // Maintain continuous context in history
         conversationHistory.push({
           role: 'assistant',
           content: content,
@@ -226,7 +252,7 @@ I have processed your security request. For live autonomous tool execution and e
       }
     }
 
-    // If tools executed but final synthesis text was not streamed yet, stream it now!
+    // If tools executed but final synthesis text was not streamed yet, stream it with key rotation!
     if (!finalReportGenerated) {
       conversationHistory.push({
         role: 'user',
@@ -234,13 +260,18 @@ I have processed your security request. For live autonomous tool execution and e
           'Based on all the diagnostic tool results gathered above, now synthesize and present the complete technical security audit report. Include: Executive Summary, Vulnerability Matrix Table (with Severity, Endpoint, Finding, Remediation), Proof of Concept/Configuration snippets, and Remediation Steps.',
       });
 
-      const finalStream = await groq.chat.completions.create({
-        model: activeModel,
-        messages: conversationHistory,
-        temperature: 0.2,
-        max_tokens: 3072,
-        stream: true,
-      });
+      const finalStream = await groqKeyManager.executeWithRotation(
+        'Final Synthesis Stream',
+        async (groqClient) => {
+          return await groqClient.chat.completions.create({
+            model: activeModel,
+            messages: conversationHistory,
+            temperature: 0.2,
+            max_tokens: 3072,
+            stream: true,
+          });
+        }
+      );
 
       for await (const chunk of finalStream) {
         const text = chunk.choices[0]?.delta?.content;
@@ -252,6 +283,7 @@ I have processed your security request. For live autonomous tool execution and e
 
     yield { type: 'done' };
   } catch (err: any) {
+    console.error('❌ [runSecurityAgentStream] Error:', err);
     yield {
       type: 'error',
       data: `Security Agent Error: ${err.message}`,

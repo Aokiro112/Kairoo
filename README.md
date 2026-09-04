@@ -179,12 +179,19 @@ Create a `.env` file inside `Backend/`:
 cp Backend/.env.example Backend/.env
 ```
 
-Edit `Backend/.env` and add your Groq API key:
+Edit `Backend/.env` and add your Groq API key(s):
 ```env
 PORT=5000
 DATABASE_URL="file:../Database/prisma/dev.db"
-GROQ_API_KEY="gsk_your_actual_groq_api_key_here"
+
+# Multi-Key Failover Pool (Add multiple comma-separated keys for auto-rotation on 429 rate limits):
+GROQ_API_KEYS="gsk_key1_here,gsk_key2_here,gsk_key3_here"
+
+# Or single key:
+GROQ_API_KEY="gsk_key1_here"
 ```
+
+> **⚡ Zero-Context-Loss Failover**: If any key in the pool hits a Groq rate limit (`429 Too Many Requests` / RPM / TPM limit), `GroqKeyManager` automatically places the exhausted key into a 60s cooldown, switches to the next available healthy key in the pool, and retries the multi-turn reasoning or tool-calling request immediately without losing chat context.
 
 ---
 
