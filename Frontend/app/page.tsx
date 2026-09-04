@@ -191,7 +191,7 @@ export default function RootLandingPage() {
               <button onClick={() => setActiveModal('pricing')} className="hover:text-[#F4F4F0] transition-colors">
                 Pricing
               </button>
-              <a href="#capabilities" className="hover:text-[#F4F4F0] transition-colors">
+              <a href="#inspection" className="hover:text-[#F4F4F0] transition-colors">
                 Docs
               </a>
             </nav>
@@ -674,7 +674,7 @@ export default function RootLandingPage() {
 
         </motion.div>
 
-        {/* Section: Swiss Editorial Capabilities Grid */}
+        {/* Section 01: Swiss Editorial Capabilities Grid */}
         <section id="features" className="w-full max-w-5xl mx-auto mt-28">
           <div className="border-b border-[#2A2A28] pb-4 mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
             <div>
@@ -751,48 +751,12 @@ export default function RootLandingPage() {
           </div>
         </section>
 
-        {/* Section: Real-Time Performance & Metrics */}
-        <section id="capabilities" className="w-full max-w-5xl mx-auto mt-28">
-          <div className="border-b border-[#2A2A28] pb-4 mb-8">
-            <div className="text-xs font-mono tracking-widest text-[#686865] uppercase mb-1">
-              BENCHMARKS / 02
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-[#F4F4F0]">
-              Built for extreme speed and precision.
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[#2A2A28] border border-[#2A2A28] rounded-lg overflow-hidden text-center">
-            
-            <div className="bg-[#0D0D0D] p-6 hover:bg-[#111111] transition-colors">
-              <div className="text-3xl sm:text-4xl font-bold font-mono text-[#F4F4F0] mb-1">12,000+</div>
-              <div className="text-xs text-[#A3A3A0]">CVE Signatures & Patterns</div>
-            </div>
-
-            <div className="bg-[#0D0D0D] p-6 hover:bg-[#111111] transition-colors">
-              <div className="text-3xl sm:text-4xl font-bold font-mono text-[#F4F4F0] mb-1">&lt; 45s</div>
-              <div className="text-xs text-[#A3A3A0]">Average Scan Triage Latency</div>
-            </div>
-
-            <div className="bg-[#0D0D0D] p-6 hover:bg-[#111111] transition-colors">
-              <div className="text-3xl sm:text-4xl font-bold font-mono text-[#F4F4F0] mb-1">99.4%</div>
-              <div className="text-xs text-[#A3A3A0]">True-Positive Verification</div>
-            </div>
-
-            <div className="bg-[#0D0D0D] p-6 hover:bg-[#111111] transition-colors">
-              <div className="text-3xl sm:text-4xl font-bold font-mono text-[#F4F4F0] mb-1">0</div>
-              <div className="text-xs text-[#A3A3A0]">Data Retention / No LLM Training</div>
-            </div>
-
-          </div>
-        </section>
-
-        {/* Section: Interactive Vulnerability & Patch Showcase */}
-        <section className="w-full max-w-5xl mx-auto mt-28">
-          <div className="border-b border-[#2A2A28] pb-4 mb-8 flex items-center justify-between">
+        {/* Section 02: Interactive Vulnerability & Patch Showcase */}
+        <section id="inspection" className="w-full max-w-5xl mx-auto mt-28">
+          <div className="border-b border-[#2A2A28] pb-4 mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
               <div className="text-xs font-mono tracking-widest text-[#686865] uppercase mb-1">
-                INSPECTION / 03
+                SYSTEM / 02 : VERIFICATION & CODE PATCH
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold text-[#F4F4F0]">
                 From vulnerability discovery to code patch.
@@ -800,7 +764,7 @@ export default function RootLandingPage() {
             </div>
 
             {/* Toggle Tabs */}
-            <div className="flex rounded border border-[#2A2A28] bg-[#111111] p-0.5">
+            <div className="flex rounded border border-[#2A2A28] bg-[#111111] p-0.5 self-start sm:self-auto">
               <button
                 onClick={() => setActiveTab('vuln')}
                 className={`px-3 py-1 text-xs font-mono rounded transition-all duration-150 ${
@@ -924,7 +888,7 @@ export default function RootLandingPage() {
               <div className="font-mono text-[#F4F4F0] mb-2 font-semibold">SECURITY</div>
               <ul className="space-y-1.5">
                 <li><button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">Trust Center</button></li>
-                <li><a href="#capabilities" className="hover:text-[#F4F4F0]">CVE Database</a></li>
+                <li><a href="#inspection" className="hover:text-[#F4F4F0]">Code Diff</a></li>
                 <li><button onClick={() => setActiveModal('trust')} className="hover:text-[#F4F4F0]">Privacy Policy</button></li>
               </ul>
             </div>
