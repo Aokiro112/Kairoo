@@ -32,13 +32,13 @@ app.get('/api/groq/keys', (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
-    service: 'Reindeer Security Backend & Groq Multi-Key Agent',
+    service: 'Kairo Security Backend & Groq Multi-Key Agent',
     groqKeysLoaded: groqKeyManager.getKeyCount(),
     timestamp: new Date().toISOString(),
   });
 });
 
 app.listen(PORT, () => {
-  console.log(`⚡ Reindeer Backend Server running on http://localhost:${PORT}`);
+  console.log(`⚡ Kairo Backend Server running on http://localhost:${PORT}`);
   console.log(`🔑 Groq API Key Pool: ${groqKeyManager.getKeyCount()} key(s) active with auto-failover.`);
 });

@@ -5,10 +5,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: reindeer-security-engine
+    container_name: kairo-security-engine
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     network_mode: bridge
     volumes:
-      - /tmp/reindeer_scans:/workspace/scans
+      - /tmp/kairo_scans:/workspace/scans

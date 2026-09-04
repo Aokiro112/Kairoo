@@ -45,9 +45,9 @@ function ChatWorkspaceContent() {
     } catch (e) {
       console.warn('API fetch fallback to localStorage', e);
       try {
-        const saved = localStorage.getItem('reindeer_tasks') || localStorage.getItem('hackerai_tasks');
+        const saved = localStorage.getItem('kairo_tasks') || localStorage.getItem('reindeer_tasks') || localStorage.getItem('hackerai_tasks');
         if (saved) setTasks(JSON.parse(saved));
-        const savedProj = localStorage.getItem('reindeer_projects') || localStorage.getItem('hackerai_projects');
+        const savedProj = localStorage.getItem('kairo_projects') || localStorage.getItem('reindeer_projects') || localStorage.getItem('hackerai_projects');
         if (savedProj) setProjects(JSON.parse(savedProj));
       } catch {}
     }

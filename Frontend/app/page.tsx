@@ -6,11 +6,11 @@ import { ArrowUp, Download, Check, X } from 'lucide-react';
 import { HackerAILogo } from '@/components/HackerAILogo';
 
 const PLACEHOLDER_PROMPTS = [
-  'Ask Reindeer to audit the security of...',
-  'Ask Reindeer to scan open ports on...',
-  'Ask Reindeer to find subdomains of...',
-  'Ask Reindeer to test the defenses of...',
-  'Ask Reindeer to analyze web application vulnerabilities on...',
+  'Ask Kairo to audit the security of...',
+  'Ask Kairo to scan open ports on...',
+  'Ask Kairo to find subdomains of...',
+  'Ask Kairo to test the defenses of...',
+  'Ask Kairo to analyze web application vulnerabilities on...',
 ];
 
 export default function RootLandingPage() {
@@ -73,16 +73,16 @@ export default function RootLandingPage() {
       {/* Top Navigation Bar */}
       <header className="w-full px-6 sm:px-10 pt-2.5 pb-1 flex-shrink-0">
         <div className="flex items-center justify-between">
-          {/* Left: Authentic Reindeer Logo & Nav Links */}
+          {/* Left: Authentic Kairo Logo & Nav Links */}
           <div className="flex items-center gap-6 sm:gap-8">
             <div 
               onClick={() => router.push('/')}
               className="flex items-center gap-2.5 cursor-pointer group select-none"
-              aria-label="Reindeer Home"
+              aria-label="Kairo Home"
             >
               <HackerAILogo className="w-7 h-7 text-white group-hover:opacity-90 transition-opacity" />
               <span className="text-xl font-semibold tracking-tight text-white font-sans">
-                Reindeer
+                Kairo
               </span>
             </div>
 
@@ -111,7 +111,7 @@ export default function RootLandingPage() {
           {/* Right: Action Buttons */}
           <div className="flex items-center gap-2.5">
             <button
-              onClick={() => alert('Reindeer Desktop app available for macOS & Linux.')}
+              onClick={() => alert('Kairo Desktop app available for macOS & Linux.')}
               className="hidden sm:inline-flex items-center gap-1.5 h-9 px-3.5 py-2 rounded-[10px] text-sm font-medium text-[#A0A0A0] hover:text-white hover:bg-white/5 transition-colors"
             >
               <Download className="w-4 h-4 mr-0.5" />
@@ -155,7 +155,7 @@ export default function RootLandingPage() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={placeholderText || 'Ask Reindeer to audit the security of...'}
+                placeholder={placeholderText || 'Ask Kairo to audit the security of...'}
                 rows={2}
                 className="w-full bg-transparent text-white text-[15px] placeholder-[#787878] focus:outline-none resize-none min-h-[44px] leading-relaxed font-sans"
               />
@@ -191,7 +191,7 @@ export default function RootLandingPage() {
       {/* Footer */}
       <footer className="flex-shrink-0 text-[#666666] relative flex min-h-8 w-full items-center justify-center p-4 text-center text-xs md:px-[60px]">
         <span className="text-xs sm:text-sm leading-none">
-          By messaging Reindeer, you agree to our{' '}
+          By messaging Kairo, you agree to our{' '}
           <a 
             href="#" 
             onClick={(e) => { e.preventDefault(); setActiveModal('trust'); }} 
@@ -228,7 +228,7 @@ export default function RootLandingPage() {
             >
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold mb-1 font-sans">Reindeer Plans</h2>
+            <h2 className="text-xl font-bold mb-1 font-sans">Kairo Plans</h2>
             <p className="text-xs text-[#A0A0A0] mb-6 font-sans">Choose the plan tailored for your security operations.</p>
             
             <div className="grid grid-cols-2 gap-4">
@@ -282,7 +282,7 @@ export default function RootLandingPage() {
               <X className="w-5 h-5" />
             </button>
             <h2 className="text-xl font-bold mb-2 flex items-center gap-2 font-sans">
-              <span className="font-bold">Reindeer</span> Security & Trust
+              <span className="font-bold">Kairo</span> Security & Trust
             </h2>
             <p className="text-xs text-[#A0A0A0] mb-4 font-sans">Our core privacy and ethical security commitments.</p>
             <div className="space-y-3 text-xs text-[#C0C0C0] leading-relaxed font-sans">

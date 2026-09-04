@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Reindeer — Advanced Security & AI Research Assistant",
+  title: "Kairo — Advanced Security & AI Research Assistant",
   description:
-    "Find and fix vulnerabilities by working with Reindeer, the autonomous cybersecurity AI copilot.",
+    "Find and fix vulnerabilities by working with Kairo, the autonomous cybersecurity AI copilot.",
 };
 
 export default function RootLayout({

@@ -1,6 +1,6 @@
 import { spawn } from 'child_process';
 
-const CONTAINER_NAME = 'reindeer-security-engine';
+const CONTAINER_NAME = 'kairo-security-engine';
 
 export interface ExecResult {
   success: boolean;
