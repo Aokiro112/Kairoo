@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { projectsRouter } from './routes/projects';
 import { tasksRouter } from './routes/tasks';
 import { chatRouter } from './routes/chat';
+import { authRouter } from './routes/auth';
 import { groqKeyManager } from './agent/groqKeyManager';
 
 dotenv.config();
@@ -41,6 +42,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // API Routes
+app.use('/api/auth', authRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/chat', chatRouter);
