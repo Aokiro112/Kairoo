@@ -24,6 +24,7 @@ import {
 import { TaskSession, Project } from '@/types/chat';
 import { HackerAILogo } from '@/components/HackerAILogo';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface SidebarProps {
   tasks: TaskSession[];
@@ -154,15 +155,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {/* Top bar icons */}
               <div className="h-12 px-3 flex items-center justify-between border-b border-transparent">
                 <div className="flex items-center gap-2">
-                  <motion.div 
-                    whileHover={{ scale: 1.08 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => router.push('/')}
-                    className="w-7 h-7 rounded-[8px] bg-[#161616] border border-[#282828] flex items-center justify-center cursor-pointer hover:border-[#3E3E3E] transition-colors p-1"
+                  <Link 
+                    href="/"
+                    prefetch={true}
+                    className="w-7 h-7 rounded-[8px] bg-[#161616] border border-[#282828] flex items-center justify-center cursor-pointer hover:border-[#3E3E3E] active:scale-95 transition-all p-1 block"
                     title="Kairo Home"
                   >
                     <HackerAILogo className="w-4 h-4 text-[#F4F4F0]" />
-                  </motion.div>
+                  </Link>
                 </div>
                 <div className="flex items-center gap-1">
                   <motion.button

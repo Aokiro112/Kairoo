@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
   ArrowRight, 
@@ -18,7 +18,6 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 
 export default function DocsPage() {
-  const router = useRouter();
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   const cliCommands = [
@@ -83,7 +82,7 @@ jobs:
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="font-mono text-xs text-[#686865] uppercase tracking-widest mb-3">
               DOCUMENTATION / REFERENCE
@@ -95,13 +94,14 @@ jobs:
               Quickstart guides, CLI command cheat sheets, agent architecture, and CI/CD workflow integrations.
             </p>
 
-            <button
-              onClick={() => router.push('/chat')}
+            <Link
+              href="/chat"
+              prefetch={true}
               className="group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#F4F4F0] text-[#090909] font-bold text-sm hover:bg-white active:scale-95 transition-all shadow-lg select-none"
             >
               <span>Try Live in Workspace</span>
               <ArrowRight className="w-4 h-4 stroke-[2.5] group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
           </motion.div>
         </div>
 
@@ -222,13 +222,14 @@ jobs:
           <p className="text-sm text-[#A3A3A0] max-w-xl mx-auto mb-6">
             Launch the interactive workspace and run your first autonomous scan in seconds.
           </p>
-          <button
-            onClick={() => router.push('/chat')}
+          <Link
+            href="/chat"
+            prefetch={true}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#F4F4F0] text-[#090909] font-bold text-sm hover:bg-white active:scale-95 transition-all shadow-md select-none"
           >
             <span>Launch Live Workspace</span>
             <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-          </button>
+          </Link>
         </div>
 
       </main>

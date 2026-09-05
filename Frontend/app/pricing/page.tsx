@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
   ArrowRight, 
@@ -15,8 +15,6 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 
 export default function PricingPage() {
-  const router = useRouter();
-
   const plans = [
     {
       name: 'Community',
@@ -95,9 +93,9 @@ export default function PricingPage() {
         {/* Hero Section */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="font-mono text-xs text-[#686865] uppercase tracking-widest mb-3">
               PRICING / TIERS
@@ -148,16 +146,17 @@ export default function PricingPage() {
                 </div>
               </div>
 
-              <button
-                onClick={() => router.push('/chat')}
-                className={`w-full py-2.5 rounded-lg text-xs font-bold transition-all active:scale-98 ${
+              <Link
+                href="/chat"
+                prefetch={true}
+                className={`w-full py-2.5 rounded-lg text-xs font-bold text-center block transition-all active:scale-98 ${
                   plan.highlight
                     ? 'bg-[#F4F4F0] text-[#090909] hover:bg-white shadow-md'
                     : 'bg-[#161616] border border-[#2A2A28] text-[#F4F4F0] hover:bg-[#202020]'
                 }`}
               >
                 {plan.ctaText}
-              </button>
+              </Link>
             </div>
           ))}
         </div>
@@ -187,13 +186,14 @@ export default function PricingPage() {
           <p className="text-sm text-[#A3A3A0] max-w-xl mx-auto mb-6">
             Get started right now in seconds with zero setup requirements.
           </p>
-          <button
-            onClick={() => router.push('/chat')}
+          <Link
+            href="/chat"
+            prefetch={true}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#F4F4F0] text-[#090909] font-bold text-sm hover:bg-white active:scale-95 transition-all shadow-md select-none"
           >
             <span>Launch Free Workstation</span>
             <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-          </button>
+          </Link>
         </div>
 
       </main>

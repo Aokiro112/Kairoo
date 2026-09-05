@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
   ArrowRight, 
@@ -21,8 +21,6 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 
 export default function FeaturesPage() {
-  const router = useRouter();
-
   const featureList = [
     {
       number: '01',
@@ -84,9 +82,9 @@ export default function FeaturesPage() {
         {/* Hero Section */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="font-mono text-xs text-[#686865] uppercase tracking-widest mb-3">
               SYSTEM / 01 : FEATURES
@@ -98,13 +96,14 @@ export default function FeaturesPage() {
               Full-spectrum cybersecurity diagnostics packaged into an ultra-fast, autonomous developer experience.
             </p>
 
-            <button
-              onClick={() => router.push('/chat')}
+            <Link
+              href="/chat"
+              prefetch={true}
               className="group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#F4F4F0] text-[#090909] font-bold text-sm hover:bg-white active:scale-95 transition-all shadow-lg select-none"
             >
               <span>Explore Features in Chat</span>
               <ArrowRight className="w-4 h-4 stroke-[2.5] group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
           </motion.div>
         </div>
 
@@ -147,13 +146,14 @@ export default function FeaturesPage() {
           <p className="text-sm text-[#A3A3A0] max-w-xl mx-auto mb-6">
             Find and fix vulnerabilities before adversaries can exploit them.
           </p>
-          <button
-            onClick={() => router.push('/chat')}
+          <Link
+            href="/chat"
+            prefetch={true}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#F4F4F0] text-[#090909] font-bold text-sm hover:bg-white active:scale-95 transition-all shadow-md select-none"
           >
             <span>Get Started Free</span>
             <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-          </button>
+          </Link>
         </div>
 
       </main>

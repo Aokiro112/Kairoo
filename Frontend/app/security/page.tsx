@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
   ArrowRight, 
@@ -17,8 +17,6 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 
 export default function SecurityPage() {
-  const router = useRouter();
-
   const principles = [
     {
       title: 'Zero LLM Training on User Code',
@@ -56,9 +54,9 @@ export default function SecurityPage() {
         {/* Hero Section */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="font-mono text-xs text-[#686865] uppercase tracking-widest mb-3">
               TRUST / SECURITY CENTER
@@ -70,13 +68,14 @@ export default function SecurityPage() {
               We know security tools handle critical data. Kairo is built with uncompromising architecture to protect your perimeter and your privacy.
             </p>
 
-            <button
-              onClick={() => router.push('/chat')}
+            <Link
+              href="/chat"
+              prefetch={true}
               className="group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#F4F4F0] text-[#090909] font-bold text-sm hover:bg-white active:scale-95 transition-all shadow-lg select-none"
             >
               <span>Launch Secure Session</span>
               <ArrowRight className="w-4 h-4 stroke-[2.5] group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
           </motion.div>
         </div>
 
@@ -128,13 +127,14 @@ export default function SecurityPage() {
           <p className="text-sm text-[#A3A3A0] max-w-xl mx-auto mb-6">
             Review our technical documentation or launch a private audit session now.
           </p>
-          <button
-            onClick={() => router.push('/chat')}
+          <Link
+            href="/chat"
+            prefetch={true}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#F4F4F0] text-[#090909] font-bold text-sm hover:bg-white active:scale-95 transition-all shadow-md select-none"
           >
             <span>Start Private Session</span>
             <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-          </button>
+          </Link>
         </div>
 
       </main>

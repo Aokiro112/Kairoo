@@ -1,25 +1,24 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { HackerAILogo } from '@/components/HackerAILogo';
 
 export function Footer() {
-  const router = useRouter();
-
   return (
     <footer className="w-full border-t border-[#1D1D1B] bg-[#090909] py-12 px-4 sm:px-8 text-xs text-[#686865] relative z-10">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
         
         {/* Brand & System Status */}
         <div className="space-y-2">
-          <div 
-            onClick={() => router.push('/')}
+          <Link 
+            href="/"
+            prefetch={true}
             className="flex items-center gap-2 text-[#F4F4F0] font-bold text-sm cursor-pointer select-none"
           >
             <HackerAILogo className="w-4 h-4 text-[#F4F4F0]" />
             <span>Kairo</span>
-          </div>
+          </Link>
           <p className="text-[#A3A3A0] text-xs max-w-xs">
             Autonomous cybersecurity AI copilot for modern defense teams.
           </p>
@@ -39,18 +38,18 @@ export function Footer() {
           <div>
             <div className="font-mono text-[#F4F4F0] mb-2 font-semibold">PRODUCT</div>
             <ul className="space-y-1.5">
-              <li><button onClick={() => router.push('/chat')} className="hover:text-[#F4F4F0] transition-colors">Workstation</button></li>
-              <li><button onClick={() => router.push('/features')} className="hover:text-[#F4F4F0] transition-colors">Features</button></li>
-              <li><button onClick={() => router.push('/pricing')} className="hover:text-[#F4F4F0] transition-colors">Pricing</button></li>
+              <li><Link href="/chat" prefetch={true} className="hover:text-[#F4F4F0] transition-colors">Workstation</Link></li>
+              <li><Link href="/features" prefetch={true} className="hover:text-[#F4F4F0] transition-colors">Features</Link></li>
+              <li><Link href="/pricing" prefetch={true} className="hover:text-[#F4F4F0] transition-colors">Pricing</Link></li>
             </ul>
           </div>
 
           <div>
             <div className="font-mono text-[#F4F4F0] mb-2 font-semibold">SECURITY</div>
             <ul className="space-y-1.5">
-              <li><button onClick={() => router.push('/trust')} className="hover:text-[#F4F4F0] transition-colors">Trust Center</button></li>
-              <li><button onClick={() => router.push('/docs')} className="hover:text-[#F4F4F0] transition-colors">Documentation</button></li>
-              <li><button onClick={() => router.push('/privacy')} className="hover:text-[#F4F4F0] transition-colors">Privacy Policy</button></li>
+              <li><Link href="/trust" prefetch={true} className="hover:text-[#F4F4F0] transition-colors">Trust Center</Link></li>
+              <li><Link href="/docs" prefetch={true} className="hover:text-[#F4F4F0] transition-colors">Documentation</Link></li>
+              <li><Link href="/privacy" prefetch={true} className="hover:text-[#F4F4F0] transition-colors">Privacy Policy</Link></li>
             </ul>
           </div>
 
@@ -69,9 +68,9 @@ export function Footer() {
       <div className="max-w-7xl mx-auto pt-8 mt-8 border-t border-[#1D1D1B] flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[11px]">
         <div>© {new Date().getFullYear()} Kairo Security Inc. All rights reserved.</div>
         <div className="flex items-center gap-4">
-          <button onClick={() => router.push('/terms')} className="hover:text-[#F4F4F0] transition-colors">TERMS</button>
-          <button onClick={() => router.push('/privacy')} className="hover:text-[#F4F4F0] transition-colors">PRIVACY</button>
-          <button onClick={() => router.push('/disclosure')} className="hover:text-[#F4F4F0] transition-colors">RESPONSIBLE DISCLOSURE</button>
+          <Link href="/terms" prefetch={true} className="hover:text-[#F4F4F0] transition-colors">TERMS</Link>
+          <Link href="/privacy" prefetch={true} className="hover:text-[#F4F4F0] transition-colors">PRIVACY</Link>
+          <Link href="/disclosure" prefetch={true} className="hover:text-[#F4F4F0] transition-colors">RESPONSIBLE DISCLOSURE</Link>
         </div>
       </div>
     </footer>

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
   ArrowRight, 
@@ -18,7 +18,6 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 
 export default function TrustCenterPage() {
-  const router = useRouter();
 
   const trustItems = [
     {
@@ -59,7 +58,7 @@ export default function TrustCenterPage() {
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="font-mono text-xs text-[#686865] uppercase tracking-widest mb-3">
               SECURITY / TRUST_CENTER
@@ -104,9 +103,10 @@ export default function TrustCenterPage() {
 
         {/* Quick Nav to Policies */}
         <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-4 mb-24">
-          <button
-            onClick={() => router.push('/privacy')}
-            className="p-6 rounded-xl border border-[#2A2A28] bg-[#0E0E0E] hover:border-[#F4F4F0] text-left transition-colors group"
+          <Link
+            href="/privacy"
+            prefetch={true}
+            className="p-6 rounded-xl border border-[#2A2A28] bg-[#0E0E0E] hover:border-[#F4F4F0] text-left transition-colors group block"
           >
             <div className="font-mono text-xs text-[#686865] mb-2">POLICY / 01</div>
             <h3 className="text-base font-bold text-[#F4F4F0] mb-1 group-hover:text-white flex items-center justify-between">
@@ -114,11 +114,12 @@ export default function TrustCenterPage() {
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </h3>
             <p className="text-xs text-[#A3A3A0]">Zero model training and local data isolation commitments.</p>
-          </button>
+          </Link>
 
-          <button
-            onClick={() => router.push('/terms')}
-            className="p-6 rounded-xl border border-[#2A2A28] bg-[#0E0E0E] hover:border-[#F4F4F0] text-left transition-colors group"
+          <Link
+            href="/terms"
+            prefetch={true}
+            className="p-6 rounded-xl border border-[#2A2A28] bg-[#0E0E0E] hover:border-[#F4F4F0] text-left transition-colors group block"
           >
             <div className="font-mono text-xs text-[#686865] mb-2">POLICY / 02</div>
             <h3 className="text-base font-bold text-[#F4F4F0] mb-1 group-hover:text-white flex items-center justify-between">
@@ -126,11 +127,12 @@ export default function TrustCenterPage() {
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </h3>
             <p className="text-xs text-[#A3A3A0]">Authorization requirements and responsible usage rules.</p>
-          </button>
+          </Link>
 
-          <button
-            onClick={() => router.push('/disclosure')}
-            className="p-6 rounded-xl border border-[#2A2A28] bg-[#0E0E0E] hover:border-[#F4F4F0] text-left transition-colors group"
+          <Link
+            href="/disclosure"
+            prefetch={true}
+            className="p-6 rounded-xl border border-[#2A2A28] bg-[#0E0E0E] hover:border-[#F4F4F0] text-left transition-colors group block"
           >
             <div className="font-mono text-xs text-[#686865] mb-2">POLICY / 03</div>
             <h3 className="text-base font-bold text-[#F4F4F0] mb-1 group-hover:text-white flex items-center justify-between">
@@ -138,7 +140,7 @@ export default function TrustCenterPage() {
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </h3>
             <p className="text-xs text-[#A3A3A0]">Safe harbor guidelines and bounty compensation matrix.</p>
-          </button>
+          </Link>
         </div>
 
         {/* Bottom CTA */}
@@ -149,13 +151,14 @@ export default function TrustCenterPage() {
           <p className="text-sm text-[#A3A3A0] max-w-xl mx-auto mb-6">
             Audit your systems autonomously with end-to-end data isolation.
           </p>
-          <button
-            onClick={() => router.push('/chat')}
+          <Link
+            href="/chat"
+            prefetch={true}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#F4F4F0] text-[#090909] font-bold text-sm hover:bg-white active:scale-95 transition-all shadow-md select-none"
           >
             <span>Launch Workstation</span>
             <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-          </button>
+          </Link>
         </div>
 
       </main>

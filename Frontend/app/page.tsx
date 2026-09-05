@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
   ArrowRight, 
@@ -180,8 +181,8 @@ export default function RootLandingPage() {
               visible: {
                 opacity: 1,
                 transition: {
-                  staggerChildren: 0.18,
-                  delayChildren: 0.05,
+                  staggerChildren: 0.1,
+                  delayChildren: 0.02,
                 },
               },
             }}
@@ -190,12 +191,11 @@ export default function RootLandingPage() {
             <div className="overflow-hidden inline-block pb-1">
               <motion.span
                 variants={{
-                  hidden: { y: '100%', opacity: 0, filter: 'blur(10px)' },
+                  hidden: { y: '100%', opacity: 0 },
                   visible: { 
                     y: 0, 
                     opacity: 1, 
-                    filter: 'blur(0px)',
-                    transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] } 
+                    transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } 
                   },
                 }}
                 className="inline-block text-[#F4F4F0]"
@@ -207,12 +207,11 @@ export default function RootLandingPage() {
             <div className="overflow-hidden inline-block pb-1">
               <motion.span
                 variants={{
-                  hidden: { y: '100%', opacity: 0, filter: 'blur(10px)' },
+                  hidden: { y: '100%', opacity: 0 },
                   visible: { 
                     y: 0, 
                     opacity: 1, 
-                    filter: 'blur(0px)',
-                    transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] } 
+                    transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } 
                   },
                 }}
                 className="inline-block text-[#F4F4F0]"
@@ -225,7 +224,7 @@ export default function RootLandingPage() {
           <motion.p
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.45, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className="text-base sm:text-lg text-[#A3A3A0] max-w-2xl mx-auto leading-relaxed"
           >
             Autonomous AI copilot for penetration testing, vulnerability research and secure development, built for individuals and teams who take security seriously.
@@ -236,7 +235,7 @@ export default function RootLandingPage() {
         <motion.div 
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.45, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className="w-full max-w-2xl mx-auto mb-5"
         >
           <div className="relative flex items-center border border-[#2A2A28] bg-[#111111] rounded-full p-1.5 sm:p-2 shadow-2xl focus-within:border-[#4A4A48] focus-within:ring-1 focus-within:ring-[#F4F4F0]/20 transition-all duration-200">
@@ -279,7 +278,7 @@ export default function RootLandingPage() {
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.7, delay: 0.75 }}
+          transition={{ duration: 0.4, delay: 0.35 }}
           className="flex flex-wrap items-center justify-center gap-2 text-xs text-[#686865] mb-16"
         >
           <span className="font-mono mr-1 select-none">Try an example:</span>
@@ -302,9 +301,9 @@ export default function RootLandingPage() {
 
         {/* Security Workstation Dashboard Preview */}
         <motion.div 
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.85, delay: 0.85, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.45, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
           className="w-full max-w-5xl mx-auto border border-[#2A2A28] bg-[#0D0D0D] rounded-xl overflow-hidden shadow-2xl relative group/workstation"
         >
           
@@ -572,9 +571,10 @@ export default function RootLandingPage() {
           {/* Bottom 3 Feature Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 border-t border-[#1D1D1B] bg-[#0A0A0A]">
             
-            <div 
-              onClick={() => router.push('/chat')}
-              className="p-4 sm:p-5 border-b sm:border-b-0 sm:border-r border-[#1D1D1B] hover:bg-[#111111] transition-all duration-200 cursor-pointer group"
+            <Link 
+              href="/chat"
+              prefetch={true}
+              className="p-4 sm:p-5 border-b sm:border-b-0 sm:border-r border-[#1D1D1B] hover:bg-[#111111] transition-all duration-200 cursor-pointer group block"
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="w-8 h-8 rounded border border-[#2A2A28] bg-[#141414] group-hover:border-[#444] flex items-center justify-center transition-colors">
@@ -586,11 +586,12 @@ export default function RootLandingPage() {
               <p className="text-xs text-[#A3A3A0] leading-relaxed">
                 Get clear, actionable fixes and remediation patches for every finding.
               </p>
-            </div>
+            </Link>
 
-            <div 
-              onClick={() => router.push('/chat')}
-              className="p-4 sm:p-5 border-b sm:border-b-0 sm:border-r border-[#1D1D1B] hover:bg-[#111111] transition-all duration-200 cursor-pointer group"
+            <Link 
+              href="/chat"
+              prefetch={true}
+              className="p-4 sm:p-5 border-b sm:border-b-0 sm:border-r border-[#1D1D1B] hover:bg-[#111111] transition-all duration-200 cursor-pointer group block"
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="w-8 h-8 rounded border border-[#2A2A28] bg-[#141414] group-hover:border-[#444] flex items-center justify-center transition-colors">
@@ -602,11 +603,12 @@ export default function RootLandingPage() {
               <p className="text-xs text-[#A3A3A0] leading-relaxed">
                 Run scans, generate reports and track remediation progress, all in one place.
               </p>
-            </div>
+            </Link>
 
-            <div 
-              onClick={() => router.push('/chat')}
-              className="p-4 sm:p-5 hover:bg-[#111111] transition-all duration-200 cursor-pointer group"
+            <Link 
+              href="/chat"
+              prefetch={true}
+              className="p-4 sm:p-5 hover:bg-[#111111] transition-all duration-200 cursor-pointer group block"
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="w-8 h-8 rounded border border-[#2A2A28] bg-[#141414] group-hover:border-[#444] flex items-center justify-center transition-colors">
@@ -618,7 +620,7 @@ export default function RootLandingPage() {
               <p className="text-xs text-[#A3A3A0] leading-relaxed">
                 Collaborate, assign, and remediate faster with unified security team logs.
               </p>
-            </div>
+            </Link>
 
           </div>
 
@@ -787,13 +789,14 @@ export default function RootLandingPage() {
               Launch Kairo in under 10 seconds. Run your first autonomous security audit and fix vulnerabilities before adversaries find them.
             </p>
 
-            <button
-              onClick={() => router.push('/chat')}
+            <Link
+              href="/chat"
+              prefetch={true}
               className="group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#F4F4F0] text-[#090909] font-bold text-sm hover:bg-white active:scale-95 transition-all shadow-lg select-none"
             >
               <span>Launch Kairo Workspace</span>
               <ArrowRight className="w-4 h-4 stroke-[2.5] group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
           </div>
         </section>
 
