@@ -11,42 +11,48 @@ export interface StreamEvent {
 }
 
 const VALID_GROQ_MODELS = new Set([
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
+  'qwen/qwen3.8-27b',
+  'qwen/qwen3.6-27b',
+  'groq/compound',
+  'groq/compound-mini',
   'llama-3.3-70b-versatile',
   'llama-3.1-8b-instant',
-  'deepseek-r1-distill-llama-70b',
-  'qwen-qwq-32b',
-  'gemma2-9b-it',
 ]);
 
 const MODEL_ALIAS_MAP: Record<string, string> = {
-  // OpenAI alias mappings to fast/high-capability Groq LPU models
-  'openai/gpt-4o': 'llama-3.3-70b-versatile',
-  'gpt-4o': 'llama-3.3-70b-versatile',
-  'gpt-4': 'llama-3.3-70b-versatile',
-  'openai/gpt-oss-120b': 'llama-3.3-70b-versatile',
-  'openai/gpt-oss-20b': 'llama-3.1-8b-instant',
+  // Groq GPT-OSS high performance mappings
+  'openai/gpt-oss-120b': 'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b': 'openai/gpt-oss-20b',
+  'gpt-oss-120b': 'openai/gpt-oss-120b',
+  'gpt-oss-20b': 'openai/gpt-oss-20b',
+  'openai/gpt-4o': 'openai/gpt-oss-120b',
+  'gpt-4o': 'openai/gpt-oss-120b',
+  'gpt-4': 'openai/gpt-oss-120b',
 
-  // Groq Llama aliases
-  'groq/llama-3.3-70b': 'llama-3.3-70b-versatile',
-  'llama-3.3-70b': 'llama-3.3-70b-versatile',
-  'llama-3.3-70b-versatile': 'llama-3.3-70b-versatile',
-  'llama-3.1-70b-versatile': 'llama-3.3-70b-versatile',
-  'groq/llama-3.1-8b': 'llama-3.1-8b-instant',
-  'llama-3.1-8b': 'llama-3.1-8b-instant',
-  'llama-3.1-8b-instant': 'llama-3.1-8b-instant',
+  // Groq Llama aliases -> Map to ultra-fast GPT-OSS 120B / 20B
+  'groq/llama-3.3-70b': 'openai/gpt-oss-120b',
+  'llama-3.3-70b': 'openai/gpt-oss-120b',
+  'llama-3.3-70b-versatile': 'openai/gpt-oss-120b',
+  'llama-3.1-70b-versatile': 'openai/gpt-oss-120b',
+  'groq/llama-3.1-8b': 'openai/gpt-oss-20b',
+  'llama-3.1-8b': 'openai/gpt-oss-20b',
+  'llama-3.1-8b-instant': 'openai/gpt-oss-20b',
 
   // DeepSeek & Qwen aliases
-  'deepseek-r1': 'deepseek-r1-distill-llama-70b',
-  'deepseek-r1-distill-llama-70b': 'deepseek-r1-distill-llama-70b',
-  'qwen/qwen-2.5-coder': 'deepseek-r1-distill-llama-70b',
-  'qwen/qwen3.8-27b': 'llama-3.3-70b-versatile',
-  'qwen/qwen3.6-27b': 'llama-3.1-8b-instant',
-  'qwen-qwq-32b': 'qwen-qwq-32b',
-  'mixtral-8x7b-32768': 'llama-3.3-70b-versatile',
+  'deepseek-r1': 'openai/gpt-oss-120b',
+  'deepseek-r1-distill-llama-70b': 'openai/gpt-oss-120b',
+  'qwen/qwen-2.5-coder': 'openai/gpt-oss-120b',
+  'qwen/qwen3.8-27b': 'openai/gpt-oss-120b',
+  'qwen/qwen3.6-27b': 'openai/gpt-oss-20b',
+  'groq/compound': 'groq/compound',
+  'groq/compound-mini': 'groq/compound-mini',
+  'mixtral-8x7b-32768': 'openai/gpt-oss-120b',
 };
 
 export const resolveModel = (requestedModel?: string): string => {
-  if (!requestedModel) return 'llama-3.3-70b-versatile';
+  if (!requestedModel) return 'openai/gpt-oss-120b';
   const clean = requestedModel.trim().toLowerCase();
 
   // Exact alias map lookup
@@ -60,22 +66,16 @@ export const resolveModel = (requestedModel?: string): string => {
   }
 
   // Smart Heuristic Fallbacks
-  if (clean.includes('r1') || clean.includes('deepseek') || clean.includes('coder')) {
-    return 'deepseek-r1-distill-llama-70b';
-  }
-  if (clean.includes('8b') || clean.includes('instant') || clean.includes('fast')) {
-    return 'llama-3.1-8b-instant';
-  }
-  if (clean.includes('70b') || clean.includes('gpt') || clean.includes('llama') || clean.includes('versatile')) {
-    return 'llama-3.3-70b-versatile';
+  if (clean.includes('20b') || clean.includes('8b') || clean.includes('instant') || clean.includes('fast')) {
+    return 'openai/gpt-oss-20b';
   }
 
-  return 'llama-3.3-70b-versatile';
+  return 'openai/gpt-oss-120b';
 };
 
 export async function* runSecurityAgentStream(
   messages: Array<{ role: string; content: string }>,
-  model: string = 'llama-3.3-70b-versatile'
+  model: string = 'openai/gpt-oss-120b'
 ): AsyncGenerator<StreamEvent> {
   const activeModel = resolveModel(model);
 
@@ -206,8 +206,8 @@ ${executedTools
         id: `step-reasoning-${Date.now()}`,
         type: 'reasoning',
         text: targetDomain
-          ? `Target \`${targetDomain}\` detected. Planning diagnostic reconnaissance workflow with \`Groq LPU (Llama 3.3 70B)\` (Auto Key Rotation Active).`
-          : `Analyzing query and formulating cybersecurity assessment with \`Groq LPU (Llama 3.3 70B)\` (Auto Key Rotation Active).`,
+          ? `Target \`${targetDomain}\` detected. Planning diagnostic reconnaissance workflow with \`Groq LPU (GPT OSS 120B)\` (Auto Key Rotation Active).`
+          : `Analyzing query and formulating cybersecurity assessment with \`Groq LPU (GPT OSS 120B)\` (Auto Key Rotation Active).`,
       },
     };
 

@@ -50,26 +50,66 @@ function ChatWorkspaceContent() {
 
       if (projRes.ok) {
         const projData = await projRes.json();
-        setProjects(projData);
+        if (Array.isArray(projData) && projData.length > 0) {
+          setProjects(projData);
+          localStorage.setItem('kairo_projects', JSON.stringify(projData));
+        }
       }
       if (tasksRes.ok) {
         const tasksData = await tasksRes.json();
-        setTasks(tasksData);
+        if (Array.isArray(tasksData) && tasksData.length > 0) {
+          setTasks(tasksData);
+          localStorage.setItem('kairo_tasks', JSON.stringify(tasksData));
+        }
       }
     } catch (e) {
       console.warn('API fetch fallback to localStorage', e);
-      try {
-        const saved = localStorage.getItem('kairo_tasks') || localStorage.getItem('reindeer_tasks') || localStorage.getItem('hackerai_tasks');
-        if (saved) setTasks(JSON.parse(saved));
-        const savedProj = localStorage.getItem('kairo_projects') || localStorage.getItem('reindeer_projects') || localStorage.getItem('hackerai_projects');
-        if (savedProj) setProjects(JSON.parse(savedProj));
-      } catch {}
     }
   };
 
+  // Immediate localStorage hydration on mount
   useEffect(() => {
+    try {
+      const savedTasks = localStorage.getItem('kairo_tasks') || localStorage.getItem('reindeer_tasks') || localStorage.getItem('hackerai_tasks');
+      if (savedTasks) {
+        const parsed = JSON.parse(savedTasks);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setTasks(parsed);
+        }
+      }
+      const savedProj = localStorage.getItem('kairo_projects') || localStorage.getItem('reindeer_projects') || localStorage.getItem('hackerai_projects');
+      if (savedProj) {
+        const parsedProj = JSON.parse(savedProj);
+        if (Array.isArray(parsedProj) && parsedProj.length > 0) {
+          setProjects(parsedProj);
+        }
+      }
+    } catch {}
+
     fetchInitialData();
   }, []);
+
+  // Continuous auto-save tasks to localStorage
+  useEffect(() => {
+    if (tasks.length > 0) {
+      try {
+        localStorage.setItem('kairo_tasks', JSON.stringify(tasks));
+      } catch (e) {
+        console.warn('Failed to persist tasks', e);
+      }
+    }
+  }, [tasks]);
+
+  // Continuous auto-save projects to localStorage
+  useEffect(() => {
+    if (projects.length > 0) {
+      try {
+        localStorage.setItem('kairo_projects', JSON.stringify(projects));
+      } catch (e) {
+        console.warn('Failed to persist projects', e);
+      }
+    }
+  }, [projects]);
 
   // Handle auto-submit if navigated from Landing Page with ?prompt=...
   useEffect(() => {
