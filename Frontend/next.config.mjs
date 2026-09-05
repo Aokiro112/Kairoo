@@ -23,11 +23,21 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    const backendUrl =
+    let backendUrl =
       process.env.BACKEND_URL ||
       process.env.NEXT_PUBLIC_BACKEND_URL ||
       'http://localhost:5000';
-      
+
+    backendUrl = backendUrl.trim().replace(/\/+$/, '');
+
+    if (backendUrl && !backendUrl.startsWith('http://') && !backendUrl.startsWith('https://') && !backendUrl.startsWith('/')) {
+      backendUrl = `https://${backendUrl}`;
+    }
+
+    if (!backendUrl) {
+      backendUrl = 'http://localhost:5000';
+    }
+
     return [
       {
         source: '/api/:path*',
