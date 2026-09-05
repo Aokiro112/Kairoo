@@ -216,11 +216,9 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
-            {/* Dedicated Groq LPU Indicator */}
+            {/* Dedicated Model Indicator */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono text-[#A3A3A0] select-none bg-[#141414] border border-[#222222]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#B8FF3D] animate-pulse" />
-              <span className="font-semibold text-[#F4F4F0]">Groq LPU</span>
-              <span className="text-[#686865]">/</span>
               <span>Llama 3.3 70B</span>
             </div>
 
