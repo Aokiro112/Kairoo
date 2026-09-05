@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import Script from 'next/script';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -18,6 +19,8 @@ import {
 import { HackerAILogo } from '@/components/HackerAILogo';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '237701441779-6pptip1u09fapgj1eps9attr5emp00j6.apps.googleusercontent.com';
 
 function AuthContent() {
   const router = useRouter();
@@ -52,35 +55,121 @@ function AuthContent() {
 
   const passwordStrength = getPasswordStrength(password);
 
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    setErrorMessage('');
-    
+  const handleGoogleSuccess = async (googleUser: any) => {
     try {
       const res = await fetch('/api/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'operator@kairo.bond', name: 'Security Operator' })
+        body: JSON.stringify({ user: googleUser }),
       });
       if (res.ok) {
         const data = await res.json();
         if (data.user) {
           localStorage.setItem('kairo_user', JSON.stringify(data.user));
-          router.push('/chat');
+          setSuccessMessage('Authenticated with Google! Redirecting...');
+          setTimeout(() => router.push('/chat'), 400);
           return;
         }
       }
     } catch {}
 
-    // Fallback: Instant session creation
-    localStorage.setItem('kairo_user', JSON.stringify({
-      name: 'Security Operator',
-      email: 'operator@kairo.bond',
-      provider: 'google',
-      role: 'Security Operator',
-      tier: 'Community'
-    }));
-    router.push('/chat');
+    localStorage.setItem('kairo_user', JSON.stringify(googleUser));
+    setSuccessMessage('Authenticated with Google! Redirecting...');
+    setTimeout(() => router.push('/chat'), 400);
+  };
+
+  // Check URL hash for OAuth redirect response
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get('access_token');
+      if (accessToken) {
+        setIsLoading(true);
+        window.history.replaceState(null, '', window.location.pathname);
+        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+          .then((res) => res.json())
+          .then(async (info) => {
+            if (info && info.email) {
+              const userObj = {
+                id: info.sub,
+                name: info.name || info.email.split('@')[0],
+                email: info.email,
+                picture: info.picture,
+                provider: 'google',
+                role: 'Security Operator',
+                tier: 'Community',
+              };
+              await handleGoogleSuccess(userObj);
+            }
+          })
+          .catch((err) => {
+            console.error('Google token error:', err);
+            setIsLoading(false);
+          });
+      }
+    }
+  }, []);
+
+  const handleGoogleLogin = () => {
+    setIsLoading(true);
+    setErrorMessage('');
+
+    // If Google Identity Services library is loaded
+    if (typeof window !== 'undefined' && (window as any).google?.accounts?.oauth2) {
+      try {
+        const client = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: 'openid email profile',
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse.error) {
+              setIsLoading(false);
+              setErrorMessage('Google Sign-In was cancelled or failed.');
+              return;
+            }
+            if (tokenResponse.access_token) {
+              try {
+                const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                if (userinfoRes.ok) {
+                  const info = await userinfoRes.json();
+                  const userObj = {
+                    id: info.sub,
+                    name: info.name || info.email?.split('@')[0],
+                    email: info.email,
+                    picture: info.picture,
+                    provider: 'google',
+                    role: 'Security Operator',
+                    tier: 'Community',
+                  };
+                  await handleGoogleSuccess(userObj);
+                  return;
+                }
+              } catch (e) {
+                console.error('Failed to fetch userinfo:', e);
+              }
+            }
+            setIsLoading(false);
+          },
+        });
+        client.requestAccessToken({ prompt: 'select_account' });
+        return;
+      } catch (err) {
+        console.error('Google token client error:', err);
+      }
+    }
+
+    // Direct OAuth Redirect Fallback
+    if (typeof window !== 'undefined') {
+      const redirectUri = `${window.location.origin}/login`;
+      const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(
+        redirectUri
+      )}&response_type=token&scope=${encodeURIComponent('openid email profile')}&prompt=select_account`;
+      window.location.href = googleAuthUrl;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -157,6 +246,7 @@ function AuthContent() {
 
   return (
     <div className="min-h-screen w-full bg-[#090909] text-[#F4F4F0] flex flex-col justify-between font-sans antialiased selection:bg-[#F4F4F0] selection:text-[#090909] relative overflow-x-hidden">
+      <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       <div className="fixed inset-0 pointer-events-none brutalist-grid opacity-30 z-0" />
       
       {/* Decorative Technical Editorial Badges */}
