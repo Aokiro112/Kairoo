@@ -28,10 +28,10 @@ interface PromptInputProps {
 }
 
 const AVAILABLE_MODELS = [
-  { id: 'openai/gpt-4o', label: 'GPT 4o', name: 'OpenAI GPT 4o', tag: 'Fast Reasoning' },
   { id: 'groq/llama-3.3-70b', label: 'Llama 3.3 70B', name: 'Groq LPU Llama 3.3', tag: 'Ultra Low Latency' },
-  { id: 'qwen/qwen-2.5-coder', label: 'Qwen 2.5 Coder', name: 'Qwen 2.5 Coder 32B', tag: 'Deep AST Audit' },
-  { id: 'openai/gpt-oss-120b', label: 'GPT OSS 120B', name: 'OpenAI GPT OSS 120B', tag: 'Extended Context' },
+  { id: 'openai/gpt-4o', label: 'GPT 4o', name: 'GPT 4o Security Core', tag: 'Fast Reasoning' },
+  { id: 'deepseek-r1', label: 'DeepSeek R1', name: 'DeepSeek R1 Distill 70B', tag: 'Deep AST Audit' },
+  { id: 'llama-3.1-8b', label: 'Llama 3.1 8B', name: 'Llama 3.1 Instant', tag: 'Sub-Second Realtime' },
 ];
 
 export const PromptInput: React.FC<PromptInputProps> = ({
@@ -44,7 +44,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const [input, setInput] = useState(initialValue);
   const [mode, setMode] = useState('Ask');
   const [target, setTarget] = useState('Kairo Desktop');
-  const [modelId, setModelId] = useState('openai/gpt-4o');
+  const [modelId, setModelId] = useState('groq/llama-3.3-70b');
 
   const [openDropdown, setOpenDropdown] = useState<'plus' | 'mode' | 'target' | 'model' | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);

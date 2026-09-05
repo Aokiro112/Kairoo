@@ -10,21 +10,67 @@ export interface StreamEvent {
   data?: any;
 }
 
+const VALID_GROQ_MODELS = new Set([
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'deepseek-r1-distill-llama-70b',
+  'qwen-qwq-32b',
+  'gemma2-9b-it',
+]);
+
 const MODEL_ALIAS_MAP: Record<string, string> = {
+  // OpenAI alias mappings to fast/high-capability Groq LPU models
+  'openai/gpt-4o': 'llama-3.3-70b-versatile',
+  'gpt-4o': 'llama-3.3-70b-versatile',
+  'gpt-4': 'llama-3.3-70b-versatile',
   'openai/gpt-oss-120b': 'llama-3.3-70b-versatile',
-  'qwen/qwen3.8-27b': 'llama-3.3-70b-versatile',
   'openai/gpt-oss-20b': 'llama-3.1-8b-instant',
-  'qwen/qwen3.6-27b': 'llama-3.1-8b-instant',
+
+  // Groq Llama aliases
+  'groq/llama-3.3-70b': 'llama-3.3-70b-versatile',
+  'llama-3.3-70b': 'llama-3.3-70b-versatile',
   'llama-3.3-70b-versatile': 'llama-3.3-70b-versatile',
   'llama-3.1-70b-versatile': 'llama-3.3-70b-versatile',
+  'groq/llama-3.1-8b': 'llama-3.1-8b-instant',
+  'llama-3.1-8b': 'llama-3.1-8b-instant',
   'llama-3.1-8b-instant': 'llama-3.1-8b-instant',
+
+  // DeepSeek & Qwen aliases
+  'deepseek-r1': 'deepseek-r1-distill-llama-70b',
   'deepseek-r1-distill-llama-70b': 'deepseek-r1-distill-llama-70b',
-  'mixtral-8x7b-32768': 'mixtral-8x7b-32768',
+  'qwen/qwen-2.5-coder': 'deepseek-r1-distill-llama-70b',
+  'qwen/qwen3.8-27b': 'llama-3.3-70b-versatile',
+  'qwen/qwen3.6-27b': 'llama-3.1-8b-instant',
+  'qwen-qwq-32b': 'qwen-qwq-32b',
+  'mixtral-8x7b-32768': 'llama-3.3-70b-versatile',
 };
 
 export const resolveModel = (requestedModel?: string): string => {
   if (!requestedModel) return 'llama-3.3-70b-versatile';
-  return MODEL_ALIAS_MAP[requestedModel] || requestedModel;
+  const clean = requestedModel.trim().toLowerCase();
+
+  // Exact alias map lookup
+  if (MODEL_ALIAS_MAP[clean]) {
+    return MODEL_ALIAS_MAP[clean];
+  }
+
+  // Already a valid official Groq model ID
+  if (VALID_GROQ_MODELS.has(clean)) {
+    return clean;
+  }
+
+  // Smart Heuristic Fallbacks
+  if (clean.includes('r1') || clean.includes('deepseek') || clean.includes('coder')) {
+    return 'deepseek-r1-distill-llama-70b';
+  }
+  if (clean.includes('8b') || clean.includes('instant') || clean.includes('fast')) {
+    return 'llama-3.1-8b-instant';
+  }
+  if (clean.includes('70b') || clean.includes('gpt') || clean.includes('llama') || clean.includes('versatile')) {
+    return 'llama-3.3-70b-versatile';
+  }
+
+  return 'llama-3.3-70b-versatile';
 };
 
 export async function* runSecurityAgentStream(
