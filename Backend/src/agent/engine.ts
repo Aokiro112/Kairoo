@@ -206,8 +206,8 @@ ${executedTools
         id: `step-reasoning-${Date.now()}`,
         type: 'reasoning',
         text: targetDomain
-          ? `Target \`${targetDomain}\` detected. Planning diagnostic reconnaissance workflow with \`${activeModel}\` (Auto Key Rotation Active).`
-          : `Analyzing query and formulating cybersecurity assessment with \`${activeModel}\` (Auto Key Rotation Active).`,
+          ? `Target \`${targetDomain}\` detected. Planning diagnostic reconnaissance workflow with \`Groq LPU (Llama 3.3 70B)\` (Auto Key Rotation Active).`
+          : `Analyzing query and formulating cybersecurity assessment with \`Groq LPU (Llama 3.3 70B)\` (Auto Key Rotation Active).`,
       },
     };
 

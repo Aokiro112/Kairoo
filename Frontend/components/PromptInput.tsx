@@ -27,13 +27,6 @@ interface PromptInputProps {
   initialValue?: string;
 }
 
-const AVAILABLE_MODELS = [
-  { id: 'groq/llama-3.3-70b', label: 'Llama 3.3 70B', name: 'Groq LPU Llama 3.3', tag: 'Ultra Low Latency' },
-  { id: 'openai/gpt-4o', label: 'GPT 4o', name: 'GPT 4o Security Core', tag: 'Fast Reasoning' },
-  { id: 'deepseek-r1', label: 'DeepSeek R1', name: 'DeepSeek R1 Distill 70B', tag: 'Deep AST Audit' },
-  { id: 'llama-3.1-8b', label: 'Llama 3.1 8B', name: 'Llama 3.1 Instant', tag: 'Sub-Second Realtime' },
-];
-
 export const PromptInput: React.FC<PromptInputProps> = ({
   onSendMessage,
   isLoading = false,
@@ -44,9 +37,9 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const [input, setInput] = useState(initialValue);
   const [mode, setMode] = useState('Ask');
   const [target, setTarget] = useState('Kairo Desktop');
-  const [modelId, setModelId] = useState('groq/llama-3.3-70b');
+  const modelId = 'llama-3.3-70b-versatile';
 
-  const [openDropdown, setOpenDropdown] = useState<'plus' | 'mode' | 'target' | 'model' | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<'plus' | 'mode' | 'target' | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -96,8 +89,6 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       handleSubmit();
     }
   };
-
-  const currentModelLabel = AVAILABLE_MODELS.find((m) => m.id === modelId)?.label || 'GPT 4o';
 
   return (
     <div className="w-full flex justify-center pb-2 px-2 bg-transparent" ref={containerRef}>
@@ -225,36 +216,12 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
-            {/* Model Selector (GPT 4o) */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setOpenDropdown(openDropdown === 'model' ? null : 'model')}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-[#888888] hover:text-white transition-colors"
-              >
-                <span>{currentModelLabel}</span>
-                <ChevronDown className="w-3 h-3 text-[#666666]" />
-              </button>
-
-              {openDropdown === 'model' && (
-                <div className="absolute bottom-9 right-0 w-60 bg-[#181818] border border-[#2C2C2C] rounded-xl shadow-2xl p-1 z-50 text-xs space-y-0.5">
-                  {AVAILABLE_MODELS.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => {
-                        setModelId(m.id);
-                        setOpenDropdown(null);
-                      }}
-                      className={`w-full flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg transition-colors ${
-                        modelId === m.id ? 'bg-[#262626] text-white font-medium' : 'text-[#A0A0A0] hover:bg-[#222222] hover:text-white'
-                      }`}
-                    >
-                      <span>{m.name}</span>
-                      <span className="text-[10px] text-[#666666] font-mono">{m.tag}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+            {/* Dedicated Groq LPU Indicator */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono text-[#A3A3A0] select-none bg-[#141414] border border-[#222222]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#B8FF3D] animate-pulse" />
+              <span className="font-semibold text-[#F4F4F0]">Groq LPU</span>
+              <span className="text-[#686865]">/</span>
+              <span>Llama 3.3 70B</span>
             </div>
 
             {/* Send Button */}
