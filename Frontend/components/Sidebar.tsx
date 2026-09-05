@@ -66,7 +66,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null);
   const [expandedProjectIds, setExpandedProjectIds] = useState<Record<string, boolean>>({});
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState({
+    name: 'Mayank Tharwani',
+    email: 'mayanktharwani9@gmail.com',
+    tier: 'Free'
+  });
   const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      const savedUser = localStorage.getItem('kairo_user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        setCurrentUser({
+          name: parsed.name || 'Mayank Tharwani',
+          email: parsed.email || 'mayanktharwani9@gmail.com',
+          tier: parsed.tier || 'Community'
+        });
+      }
+    } catch {}
+  }, []);
 
   // Auto-expand active project
   useEffect(() => {
@@ -458,7 +477,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="flex items-center gap-2.5 px-3.5 py-3 text-[#D8D8D8] border-b border-[#222222]">
                       <UserCircle className="w-4 h-4 text-[#A0A0A0] shrink-0" />
                       <span className="truncate text-[12.5px] font-medium">
-                        mayanktharwani9@gmail.com
+                        {currentUser.email}
                       </span>
                     </div>
 
@@ -508,8 +527,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => {
                           setIsProfileMenuOpen(false);
                           if (confirm('Are you sure you want to log out?')) {
-                            localStorage.clear();
-                            window.location.reload();
+                            localStorage.removeItem('kairo_user');
+                            router.push('/login');
                           }
                         }}
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-white transition-all text-left"
@@ -531,15 +550,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   isProfileMenuOpen ? 'bg-[#1E1E1E] shadow-sm' : 'hover:bg-[#1A1A1A]'
                 }`}
               >
-                <div className="w-8 h-8 rounded-full bg-[#242424] border border-[#333333] text-white flex items-center justify-center text-sm font-semibold shadow-inner">
-                  M
+                <div className="w-8 h-8 rounded-full bg-[#242424] border border-[#333333] text-white flex items-center justify-center text-sm font-semibold shadow-inner uppercase">
+                  {currentUser.name ? currentUser.name.charAt(0) : 'M'}
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
                   <span className="text-white text-[13px] font-medium leading-tight truncate">
-                    Mayank Tharwani
+                    {currentUser.name}
                   </span>
                   <span className="text-[#757575] text-[11.5px]">
-                    Free
+                    {currentUser.tier}
                   </span>
                 </div>
               </motion.div>

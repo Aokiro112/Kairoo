@@ -59,15 +59,17 @@ export function Navbar() {
         {/* Right CTA buttons */}
         <div className="flex items-center gap-4">
           <Link
-            href="/chat"
+            href="/login"
             prefetch={true}
-            className="text-sm font-medium text-[#A3A3A0] hover:text-[#F4F4F0] transition-colors px-2 py-1"
+            className={`text-sm font-medium transition-colors px-2 py-1 ${
+              pathname === '/login' ? 'text-[#F4F4F0] font-semibold' : 'text-[#A3A3A0] hover:text-[#F4F4F0]'
+            }`}
           >
             Sign in
           </Link>
 
           <Link
-            href="/chat"
+            href="/register"
             prefetch={true}
             className="group inline-flex items-center justify-center gap-2 h-9 px-4 rounded-full bg-[#F4F4F0] text-[#090909] font-semibold text-sm hover:bg-white active:scale-95 transition-all shadow-xs"
           >

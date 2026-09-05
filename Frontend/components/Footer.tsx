@@ -39,6 +39,7 @@ export function Footer() {
             <div className="font-mono text-[#F4F4F0] mb-2 font-semibold">PRODUCT</div>
             <ul className="space-y-1.5">
               <li><Link href="/chat" prefetch={true} className="hover:text-[#F4F4F0] transition-colors">Workstation</Link></li>
+              <li><Link href="/login" prefetch={true} className="hover:text-[#F4F4F0] transition-colors">Sign In</Link></li>
               <li><Link href="/features" prefetch={true} className="hover:text-[#F4F4F0] transition-colors">Features</Link></li>
               <li><Link href="/pricing" prefetch={true} className="hover:text-[#F4F4F0] transition-colors">Pricing</Link></li>
             </ul>

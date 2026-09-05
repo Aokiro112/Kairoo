@@ -24,8 +24,21 @@ function ChatWorkspaceContent() {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [userName, setUserName] = useState('Mayank');
   const abortControllerRef = useRef<AbortController | null>(null);
   const initialPromptHandled = useRef(false);
+
+  useEffect(() => {
+    try {
+      const savedUser = localStorage.getItem('kairo_user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed?.name) {
+          setUserName(parsed.name.split(' ')[0] || parsed.name);
+        }
+      }
+    } catch {}
+  }, []);
 
   // Load projects and tasks from DB via backend APIs
   const fetchInitialData = async () => {
@@ -507,7 +520,7 @@ function ChatWorkspaceContent() {
                       }}
                       className="inline-block text-[#888888]"
                     >
-                      Mayank?
+                      {userName}?
                     </motion.span>
                   </div>
                 </motion.h1>
