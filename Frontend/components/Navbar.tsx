@@ -30,7 +30,7 @@ export function Navbar() {
         {/* Logo & Links */}
         <div className="flex items-center gap-8">
           <Link 
-            href="/"
+            href={user ? "/chat" : "/"}
             prefetch={true}
             className="flex items-center gap-3 cursor-pointer group select-none"
           >

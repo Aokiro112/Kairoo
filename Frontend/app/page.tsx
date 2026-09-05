@@ -25,6 +25,7 @@ import {
 import { HackerAILogo } from '@/components/HackerAILogo';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { getUserSession } from '@/lib/session';
 
 const PLACEHOLDER_PROMPTS = [
   'Scan my API for vulnerabilities',
@@ -60,6 +61,16 @@ export default function RootLandingPage() {
   const [activeModal, setActiveModal] = useState<'signin' | 'pricing' | 'trust' | 'docs' | null>(null);
   const [copiedTerminal, setCopiedTerminal] = useState(false);
   const [activeTab, setActiveTab] = useState<'vuln' | 'patch'>('vuln');
+
+  // Auto-redirect if user is already logged in
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const session = getUserSession();
+      if (session && (session.email || session.name)) {
+        router.replace('/chat');
+      }
+    }
+  }, [router]);
 
   // Dynamic typewriter placeholder effect
   const [placeholderText, setPlaceholderText] = useState('');
