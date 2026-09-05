@@ -11,11 +11,9 @@ import {
   User, 
   Eye, 
   EyeOff, 
-  ShieldCheck, 
   KeyRound, 
   Check, 
-  AlertCircle,
-  Fingerprint
+  AlertCircle
 } from 'lucide-react';
 import { HackerAILogo } from '@/components/HackerAILogo';
 import { Navbar } from '@/components/Navbar';
@@ -62,7 +60,7 @@ function AuthContent() {
       const res = await fetch('/api/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'mayanktharwani9@gmail.com', name: 'Mayank Tharwani' })
+        body: JSON.stringify({ email: 'operator@kairo.bond', name: 'Security Operator' })
       });
       if (res.ok) {
         const data = await res.json();
@@ -76,8 +74,8 @@ function AuthContent() {
 
     // Fallback: Instant session creation
     localStorage.setItem('kairo_user', JSON.stringify({
-      name: 'Mayank Tharwani',
-      email: 'mayanktharwani9@gmail.com',
+      name: 'Security Operator',
+      email: 'operator@kairo.bond',
       provider: 'google',
       role: 'Security Operator',
       tier: 'Community'
@@ -144,20 +142,6 @@ function AuthContent() {
     setTimeout(() => {
       router.push('/chat');
     }, 500);
-  };
-
-  const handleDemoLogin = () => {
-    setIsLoading(true);
-    localStorage.setItem('kairo_user', JSON.stringify({
-      name: 'Mayank Tharwani',
-      email: 'mayanktharwani9@gmail.com',
-      provider: 'demo',
-      role: 'Lead Penetration Tester',
-      tier: 'Security Pro'
-    }));
-    setTimeout(() => {
-      router.push('/chat');
-    }, 400);
   };
 
   const handleForgotSubmit = (e: React.FormEvent) => {
@@ -314,7 +298,7 @@ function AuthContent() {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Mayank Tharwani"
+                    placeholder="e.g. Alex Hunter"
                     className="w-full bg-transparent text-sm text-[#F4F4F0] placeholder-[#5A5A58] focus:outline-none font-sans"
                   />
                 </div>
@@ -454,26 +438,7 @@ function AuthContent() {
 
           </form>
 
-          {/* Quick Demo Login Pill */}
-          <div className="mt-6 pt-5 border-t border-[#1D1D1B] text-center">
-            <div className="text-[11px] font-mono text-[#686865] mb-2">DEVELOPER / TEST ACCESS</div>
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              className="w-full py-2 px-3 rounded-lg border border-[#2A2A28] bg-[#111111] hover:bg-[#181818] hover:border-[#3E3E3E] active:scale-98 text-xs font-mono text-[#A3A3A0] hover:text-[#F4F4F0] flex items-center justify-center gap-2 transition-all"
-            >
-              <Fingerprint className="w-3.5 h-3.5 text-[#B8FF3D]" />
-              <span>Instant Demo Access (Mayank Tharwani)</span>
-            </button>
-          </div>
-
         </motion.div>
-
-        {/* Security Commitments Under Card */}
-        <div className="mt-6 text-center text-[11px] font-mono text-[#686865] flex items-center justify-center gap-2">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#B8FF3D]" />
-          <span>ZERO TELEMETRY GUARANTEE • TLS 1.3 ENCRYPTED SESSIONS</span>
-        </div>
 
       </main>
 

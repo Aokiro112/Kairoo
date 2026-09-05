@@ -338,10 +338,10 @@ export default function RootLandingPage() {
 
               <div className="flex items-center gap-2 border-l border-[#222222] pl-3">
                 <div className="w-7 h-7 rounded-full bg-[#1F1F1F] border border-[#2A2A28] flex items-center justify-center text-xs font-mono text-[#F4F4F0]">
-                  M
+                  OP
                 </div>
                 <div className="hidden md:flex flex-col">
-                  <span className="text-xs font-medium text-[#F4F4F0] leading-none">Mayank</span>
+                  <span className="text-xs font-medium text-[#F4F4F0] leading-none">Operator</span>
                   <span className="text-[10px] text-[#686865] leading-none mt-0.5">Pro Plan</span>
                 </div>
                 <MoreVertical className="w-3.5 h-3.5 text-[#686865] cursor-pointer hover:text-white ml-1 transition-colors" />

@@ -24,7 +24,7 @@ function ChatWorkspaceContent() {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [userName, setUserName] = useState('Mayank');
+  const [userName, setUserName] = useState('Operator');
   const abortControllerRef = useRef<AbortController | null>(null);
   const initialPromptHandled = useRef(false);
 

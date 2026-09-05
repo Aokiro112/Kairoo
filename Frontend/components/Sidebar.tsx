@@ -67,8 +67,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [expandedProjectIds, setExpandedProjectIds] = useState<Record<string, boolean>>({});
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState({
-    name: 'Mayank Tharwani',
-    email: 'mayanktharwani9@gmail.com',
+    name: 'Security Operator',
+    email: 'operator@kairo.bond',
     tier: 'Free'
   });
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -79,8 +79,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       if (savedUser) {
         const parsed = JSON.parse(savedUser);
         setCurrentUser({
-          name: parsed.name || 'Mayank Tharwani',
-          email: parsed.email || 'mayanktharwani9@gmail.com',
+          name: parsed.name || 'Security Operator',
+          email: parsed.email || 'operator@kairo.bond',
           tier: parsed.tier || 'Community'
         });
       }
