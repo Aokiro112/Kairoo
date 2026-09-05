@@ -25,6 +25,7 @@ import { TaskSession, Project } from '@/types/chat';
 import { HackerAILogo } from '@/components/HackerAILogo';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { getUserSession, clearUserSession } from '@/lib/session';
 
 interface SidebarProps {
   tasks: TaskSession[];
@@ -38,10 +39,11 @@ interface SidebarProps {
   onOpenSearch: () => void;
   onOpenNewProject: () => void;
   onDeleteTask?: (id: string) => void;
-  onDeleteProject?: (id: string) => void;
   onClearAllTasks?: () => void;
+  onDeleteProject?: (id: string) => void;
   isOpen: boolean;
   onToggleOpen: () => void;
+  onToggle?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -56,8 +58,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenSearch,
   onOpenNewProject,
   onDeleteTask,
-  onDeleteProject,
   onClearAllTasks,
+  onDeleteProject,
   isOpen,
   onToggleOpen,
 }) => {
@@ -69,22 +71,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [currentUser, setCurrentUser] = useState({
     name: 'Security Operator',
     email: 'operator@kairo.bond',
-    tier: 'Free'
+    tier: 'Community'
   });
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    try {
-      const savedUser = localStorage.getItem('kairo_user');
-      if (savedUser) {
-        const parsed = JSON.parse(savedUser);
-        setCurrentUser({
-          name: parsed.name || 'Security Operator',
-          email: parsed.email || 'operator@kairo.bond',
-          tier: parsed.tier || 'Community'
-        });
-      }
-    } catch {}
+    const session = getUserSession();
+    if (session) {
+      setCurrentUser({
+        name: session.name || 'Security Operator',
+        email: session.email || 'operator@kairo.bond',
+        tier: session.tier || 'Community'
+      });
+    }
   }, []);
 
   // Auto-expand active project
@@ -527,8 +526,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => {
                           setIsProfileMenuOpen(false);
                           if (confirm('Are you sure you want to log out?')) {
-                            localStorage.removeItem('kairo_user');
-                            router.push('/login');
+                            clearUserSession();
+                            router.push('/login?logout=true');
                           }
                         }}
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-white transition-all text-left"

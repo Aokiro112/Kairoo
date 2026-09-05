@@ -1,13 +1,20 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { HackerAILogo } from '@/components/HackerAILogo';
+import { getUserSession, UserSession } from '@/lib/session';
 
 export function Navbar() {
   const pathname = usePathname();
+  const [user, setUser] = useState<UserSession | null>(null);
+
+  useEffect(() => {
+    const session = getUserSession();
+    setUser(session);
+  }, [pathname]);
 
   const navLinks = [
     { label: 'Product', href: '/product' },
@@ -58,24 +65,50 @@ export function Navbar() {
 
         {/* Right CTA buttons */}
         <div className="flex items-center gap-4">
-          <Link
-            href="/login"
-            prefetch={true}
-            className={`text-sm font-medium transition-colors px-2 py-1 ${
-              pathname === '/login' ? 'text-[#F4F4F0] font-semibold' : 'text-[#A3A3A0] hover:text-[#F4F4F0]'
-            }`}
-          >
-            Sign in
-          </Link>
+          {user ? (
+            <>
+              <Link
+                href="/chat"
+                prefetch={true}
+                className="text-sm font-medium text-[#A3A3A0] hover:text-[#F4F4F0] transition-colors px-2 py-1 flex items-center gap-2"
+              >
+                <div className="w-5 h-5 rounded-full bg-[#1A1A1A] border border-[#2A2A28] flex items-center justify-center text-[10px] font-mono text-[#F4F4F0]">
+                  {user.name ? user.name.charAt(0).toUpperCase() : 'O'}
+                </div>
+                <span>{user.name ? user.name.split(' ')[0] : 'Workstation'}</span>
+              </Link>
 
-          <Link
-            href="/register"
-            prefetch={true}
-            className="group inline-flex items-center justify-center gap-2 h-9 px-4 rounded-full bg-[#F4F4F0] text-[#090909] font-semibold text-sm hover:bg-white active:scale-95 transition-all shadow-xs"
-          >
-            <span>Get started</span>
-            <ArrowRight className="w-3.5 h-3.5 stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
-          </Link>
+              <Link
+                href="/chat"
+                prefetch={true}
+                className="group inline-flex items-center justify-center gap-2 h-9 px-4 rounded-full bg-[#F4F4F0] text-[#090909] font-semibold text-sm hover:bg-white active:scale-95 transition-all shadow-xs"
+              >
+                <span>Workstation</span>
+                <ArrowRight className="w-3.5 h-3.5 stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                prefetch={true}
+                className={`text-sm font-medium transition-colors px-2 py-1 ${
+                  pathname === '/login' ? 'text-[#F4F4F0] font-semibold' : 'text-[#A3A3A0] hover:text-[#F4F4F0]'
+                }`}
+              >
+                Sign in
+              </Link>
+
+              <Link
+                href="/register"
+                prefetch={true}
+                className="group inline-flex items-center justify-center gap-2 h-9 px-4 rounded-full bg-[#F4F4F0] text-[#090909] font-semibold text-sm hover:bg-white active:scale-95 transition-all shadow-xs"
+              >
+                <span>Get started</span>
+                <ArrowRight className="w-3.5 h-3.5 stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

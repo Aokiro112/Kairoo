@@ -19,6 +19,7 @@ import {
 import { HackerAILogo } from '@/components/HackerAILogo';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { saveUserSession, getUserSession } from '@/lib/session';
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '237701441779-6pptip1u09fapgj1eps9attr5emp00j6.apps.googleusercontent.com';
 
@@ -36,6 +37,16 @@ function AuthContent() {
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSuccess, setForgotSuccess] = useState(false);
+
+  // Auto-redirect if already logged in and not explicitly logging out
+  useEffect(() => {
+    if (typeof window !== 'undefined' && searchParams.get('logout') !== 'true') {
+      const activeSession = getUserSession();
+      if (activeSession && (activeSession.email || activeSession.name)) {
+        router.replace('/chat');
+      }
+    }
+  }, [router, searchParams]);
 
   // Form states
   const [name, setName] = useState('');
@@ -65,7 +76,7 @@ function AuthContent() {
       if (res.ok) {
         const data = await res.json();
         if (data.user) {
-          localStorage.setItem('kairo_user', JSON.stringify(data.user));
+          saveUserSession(data.user);
           setSuccessMessage('Authenticated with Google! Redirecting...');
           setTimeout(() => router.push('/chat'), 400);
           return;
@@ -73,7 +84,7 @@ function AuthContent() {
       }
     } catch {}
 
-    localStorage.setItem('kairo_user', JSON.stringify(googleUser));
+    saveUserSession(googleUser);
     setSuccessMessage('Authenticated with Google! Redirecting...');
     setTimeout(() => router.push('/chat'), 400);
   };
@@ -209,7 +220,7 @@ function AuthContent() {
       if (res.ok) {
         const data = await res.json();
         if (data.user) {
-          localStorage.setItem('kairo_user', JSON.stringify(data.user));
+          saveUserSession(data.user);
           setSuccessMessage(mode === 'register' ? 'Account created! Redirecting...' : 'Authenticated! Redirecting...');
           setTimeout(() => router.push('/chat'), 500);
           return;
@@ -220,13 +231,13 @@ function AuthContent() {
     // Fallback local session
     setIsLoading(false);
     const displayName = mode === 'register' ? name : (email.split('@')[0] || 'Operator');
-    localStorage.setItem('kairo_user', JSON.stringify({
+    saveUserSession({
       name: displayName,
       email: email.trim(),
       provider: 'credentials',
       role: 'Security Operator',
       tier: 'Community'
-    }));
+    });
     setSuccessMessage(mode === 'register' ? 'Account created successfully! Redirecting...' : 'Authenticated successfully! Redirecting...');
     setTimeout(() => {
       router.push('/chat');

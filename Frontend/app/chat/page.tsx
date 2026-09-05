@@ -13,6 +13,7 @@ import { ToolDetailModal } from '@/components/modals/ToolDetailModal';
 import { TaskSession, ChatMessage, ToolCall, Project, AssistantStep } from '@/types/chat';
 import { FolderOpen, MessageSquare, Globe, Code2, FileText, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getUserSession } from '@/lib/session';
 
 function ChatWorkspaceContent() {
   const searchParams = useSearchParams();
@@ -29,15 +30,10 @@ function ChatWorkspaceContent() {
   const initialPromptHandled = useRef(false);
 
   useEffect(() => {
-    try {
-      const savedUser = localStorage.getItem('kairo_user');
-      if (savedUser) {
-        const parsed = JSON.parse(savedUser);
-        if (parsed?.name) {
-          setUserName(parsed.name.split(' ')[0] || parsed.name);
-        }
-      }
-    } catch {}
+    const session = getUserSession();
+    if (session?.name) {
+      setUserName(session.name.split(' ')[0] || session.name);
+    }
   }, []);
 
   // Load projects and tasks from DB via backend APIs
