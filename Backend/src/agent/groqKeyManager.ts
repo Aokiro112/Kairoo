@@ -1,13 +1,20 @@
 import Groq from 'groq-sdk';
 import dotenv from 'dotenv';
-
+import fs from 'fs';
 import path from 'path';
 
 // Load .env from Backend directory or root
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-dotenv.config({ path: path.resolve(process.cwd(), 'Backend/.env') });
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+const envPaths = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), 'Backend/.env'),
+  path.resolve(__dirname, '../../.env'),
+  path.resolve(__dirname, '../.env'),
+];
+envPaths.forEach((p) => {
+  if (fs.existsSync(p)) {
+    dotenv.config({ path: p });
+  }
+});
 
 export interface KeyStatus {
   index: number;
@@ -31,31 +38,62 @@ class GroqKeyManager {
   }
 
   /**
-   * Loads all available Groq API keys from GROQ_API_KEYS (comma-separated list) or GROQ_API_KEY.
+   * Automatically discovers and loads all Groq API keys from:
+   * - GROQ_API_KEY, GROQ_API_KEYS (comma-separated or JSON)
+   * - GROQ_API_KEY_1, GROQ_API_KEY_2, GRoQ_API_KEY_2 (any case, numbered)
+   * - Direct .env file lines
    */
   public reloadKeys(): void {
-    const rawKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || '';
-    
-    // Parse comma-separated, newline-separated, or JSON array format
-    let parsedKeys: string[] = [];
+    const candidateKeys: string[] = [];
 
-    if (rawKeys.trim().startsWith('[') && rawKeys.trim().endsWith(']')) {
-      try {
-        parsedKeys = JSON.parse(rawKeys);
-      } catch {
-        parsedKeys = [];
+    // 1. Scan all process.env variables matching groq.*key.* (case-insensitive)
+    for (const [envVar, val] of Object.entries(process.env)) {
+      if (!val || typeof val !== 'string') continue;
+      const normalizedName = envVar.trim().toLowerCase();
+      if (normalizedName.includes('groq') && normalizedName.includes('key')) {
+        const raw = val.trim();
+        if (raw.startsWith('[') && raw.endsWith(']')) {
+          try {
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) candidateKeys.push(...arr);
+          } catch {}
+        } else {
+          const split = raw.split(/[,\n]/).map((k) => k.replace(/["']/g, '').trim());
+          candidateKeys.push(...split);
+        }
       }
     }
 
-    if (parsedKeys.length === 0) {
-      parsedKeys = rawKeys
-        .split(/[,\n]/)
-        .map((k) => k.replace(/["']/g, '').trim())
-        .filter((k) => k.length > 0 && (k.startsWith('gsk_') || k.length > 10));
+    // 2. Directly inspect .env files to recover repeated duplicate variable lines
+    for (const envPath of envPaths) {
+      if (fs.existsSync(envPath)) {
+        try {
+          const content = fs.readFileSync(envPath, 'utf8');
+          const lines = content.split('\n');
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('#') || !trimmed.includes('=')) continue;
+            const [k, ...vParts] = trimmed.split('=');
+            const keyName = k.trim().toLowerCase();
+            if (keyName.includes('groq') && keyName.includes('key')) {
+              const val = vParts.join('=').replace(/["']/g, '').trim();
+              if (val) candidateKeys.push(val);
+            }
+          }
+        } catch {}
+      }
     }
 
-    // Deduplicate keys
-    this.keys = Array.from(new Set(parsedKeys));
+    // 3. Filter valid Groq keys (starts with gsk_ or length > 15) and deduplicate
+    const parsedKeys = Array.from(
+      new Set(
+        candidateKeys
+          .map((k) => k.trim())
+          .filter((k) => k.length > 0 && (k.startsWith('gsk_') || k.length >= 20))
+      )
+    );
+
+    this.keys = parsedKeys;
     this.clients = this.keys.map((apiKey) => new Groq({ apiKey }));
     this.rateLimitedUntil = new Array(this.keys.length).fill(0);
     this.totalRequestsPerKey = new Array(this.keys.length).fill(0);
@@ -64,14 +102,14 @@ class GroqKeyManager {
 
     if (this.keys.length > 0) {
       console.log(
-        `🔑 [GroqKeyManager] Loaded ${this.keys.length} Groq API key(s) into active failover pool.`
+        `🔑 [GroqKeyManager] Successfully loaded ${this.keys.length} Groq API key(s) into active failover pool.`
       );
       this.keys.forEach((k, idx) => {
         const masked = `${k.slice(0, 7)}...${k.slice(-4)}`;
         console.log(`   ├─ Key #${idx + 1}: ${masked}`);
       });
     } else {
-      console.warn('⚠️ [GroqKeyManager] No valid Groq API keys found in GROQ_API_KEYS or GROQ_API_KEY.');
+      console.warn('⚠️ [GroqKeyManager] No valid Groq API keys found in environment variables.');
     }
   }
 
