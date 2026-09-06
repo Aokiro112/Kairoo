@@ -38,6 +38,7 @@ interface SidebarProps {
   onNewTaskInProject?: (projectId: string) => void;
   onOpenSearch: () => void;
   onOpenNewProject: () => void;
+  onOpenSettings?: () => void;
   onDeleteTask?: (id: string) => void;
   onClearAllTasks?: () => void;
   onDeleteProject?: (id: string) => void;
@@ -57,6 +58,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNewTaskInProject,
   onOpenSearch,
   onOpenNewProject,
+  onOpenSettings,
   onDeleteTask,
   onClearAllTasks,
   onDeleteProject,
@@ -488,24 +490,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <motion.button
                         whileHover={{ x: 3, backgroundColor: '#1E1E1E' }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => setIsProfileMenuOpen(false)}
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          if (onOpenSettings) onOpenSettings();
+                        }}
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-white transition-all text-left"
                       >
                         <Settings className="w-4 h-4 text-[#CCCCCC]" />
                         <span>Settings</span>
-                      </motion.button>
-
-                      <motion.button
-                        whileHover={{ x: 3, backgroundColor: '#1E1E1E' }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => {
-                          setIsProfileMenuOpen(false);
-                          alert('Desktop App download initiated for Linux/macOS/Windows');
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-white transition-all text-left"
-                      >
-                        <Download className="w-4 h-4 text-[#CCCCCC]" />
-                        <span>Download App</span>
                       </motion.button>
 
                       <div className="my-1 border-t border-[#222222]" />
@@ -513,12 +505,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <motion.button
                         whileHover={{ x: 3, backgroundColor: '#1E1E1E' }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => setIsProfileMenuOpen(false)}
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          router.push('/docs');
+                        }}
                         className="w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-white transition-all text-left"
                       >
                         <div className="flex items-center gap-2.5">
                           <LifeBuoy className="w-4 h-4 text-[#CCCCCC]" />
-                          <span>Help</span>
+                          <span>Docs & Help</span>
                         </div>
                         <ChevronRight className="w-3.5 h-3.5 text-[#757575]" />
                       </motion.button>

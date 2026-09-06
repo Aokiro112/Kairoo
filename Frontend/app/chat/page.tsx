@@ -10,6 +10,7 @@ import { SearchModal } from '@/components/modals/SearchModal';
 import { ShareModal } from '@/components/modals/ShareModal';
 import { NewProjectModal } from '@/components/modals/NewProjectModal';
 import { ToolDetailModal } from '@/components/modals/ToolDetailModal';
+import { SettingsModal } from '@/components/modals/SettingsModal';
 import { TaskSession, ChatMessage, ToolCall, Project, AssistantStep } from '@/types/chat';
 import { FolderOpen, MessageSquare, Globe, Code2, FileText, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -168,7 +169,15 @@ function ChatWorkspaceContent() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [selectedTool, setSelectedTool] = useState<ToolCall | null>(null);
+
+  // Auto-open settings if navigated with ?settings=true
+  useEffect(() => {
+    if (searchParams.get('settings') === 'true') {
+      setIsSettingsOpen(true);
+    }
+  }, [searchParams]);
 
   // Active Task and Active Project
   const activeTask = activeTaskId ? tasks.find((t) => t.id === activeTaskId) : null;
@@ -492,6 +501,7 @@ function ChatWorkspaceContent() {
         onNewTaskInProject={handleNewTaskInProject}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenNewProject={() => setIsNewProjectOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         onDeleteTask={handleDeleteTask}
         onDeleteProject={handleDeleteProject}
         onClearAllTasks={handleClearAllTasks}
@@ -769,6 +779,22 @@ function ChatWorkspaceContent() {
       <ToolDetailModal
         tool={selectedTool}
         onClose={() => setSelectedTool(null)}
+      />
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => {
+          setIsSettingsOpen(false);
+          if (searchParams.get('settings') === 'true') {
+            router.replace('/chat');
+          }
+        }}
+        tasks={tasks}
+        onClearHistory={handleClearAllTasks}
+        onUserUpdate={(u) => {
+          if (u.name) setUserName(u.name.split(' ')[0] || u.name);
+          if (u.email) setUserEmail(u.email);
+        }}
       />
     </main>
   );
