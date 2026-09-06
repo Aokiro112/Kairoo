@@ -79,9 +79,12 @@ function ChatWorkspaceContent() {
 
       if (projRes.ok) {
         const projData = await projRes.json();
-        if (Array.isArray(projData) && projData.length > 0) {
+        if (Array.isArray(projData)) {
           setProjects(projData);
           localStorage.setItem('kairo_projects', JSON.stringify(projData));
+          if (userEmail !== 'default') {
+            localStorage.setItem(`kairo_projects_${userEmail}`, JSON.stringify(projData));
+          }
         }
       }
       if (tasksRes.ok) {
@@ -118,7 +121,7 @@ function ChatWorkspaceContent() {
       localStorage.removeItem('reindeer_projects');
       localStorage.removeItem('hackerai_projects');
 
-      const savedTasks = localStorage.getItem('kairo_tasks') || (userEmail !== 'default' ? localStorage.getItem(`kairo_tasks_${userEmail}`) : null);
+      const savedTasks = (userEmail !== 'default' ? localStorage.getItem(`kairo_tasks_${userEmail}`) : null) || localStorage.getItem('kairo_tasks');
       if (savedTasks) {
         const parsed = JSON.parse(savedTasks);
         if (Array.isArray(parsed)) {
@@ -130,10 +133,10 @@ function ChatWorkspaceContent() {
           }
         }
       }
-      const savedProj = localStorage.getItem('kairo_projects');
+      const savedProj = (userEmail !== 'default' ? localStorage.getItem(`kairo_projects_${userEmail}`) : null) || localStorage.getItem('kairo_projects');
       if (savedProj) {
         const parsedProj = JSON.parse(savedProj);
-        if (Array.isArray(parsedProj) && parsedProj.length > 0) {
+        if (Array.isArray(parsedProj)) {
           setProjects(parsedProj);
         }
       }
@@ -159,14 +162,15 @@ function ChatWorkspaceContent() {
 
   // Continuous auto-save projects to localStorage
   useEffect(() => {
-    if (projects.length > 0) {
-      try {
-        localStorage.setItem('kairo_projects', JSON.stringify(projects));
-      } catch (e) {
-        console.warn('Failed to persist projects', e);
+    try {
+      localStorage.setItem('kairo_projects', JSON.stringify(projects));
+      if (userEmail && userEmail !== 'default') {
+        localStorage.setItem(`kairo_projects_${userEmail}`, JSON.stringify(projects));
       }
+    } catch (e) {
+      console.warn('Failed to persist projects', e);
     }
-  }, [projects]);
+  }, [projects, userEmail]);
 
   // Handle auto-submit if navigated from Landing Page with ?prompt=...
   useEffect(() => {
@@ -282,8 +286,28 @@ function ChatWorkspaceContent() {
   };
 
   const handleDeleteProject = async (projId: string) => {
-    setProjects((prev) => prev.filter((p) => p.id !== projId));
-    setTasks((prev) => prev.map((t) => (t.projectId === projId ? { ...t, projectId: undefined } : t)));
+    setProjects((prev) => {
+      const updated = prev.filter((p) => p.id !== projId);
+      try {
+        localStorage.setItem('kairo_projects', JSON.stringify(updated));
+        if (userEmail !== 'default') {
+          localStorage.setItem(`kairo_projects_${userEmail}`, JSON.stringify(updated));
+        }
+      } catch {}
+      return updated;
+    });
+
+    setTasks((prev) => {
+      const updated = prev.map((t) => (t.projectId === projId ? { ...t, projectId: undefined } : t));
+      try {
+        localStorage.setItem('kairo_tasks', JSON.stringify(updated));
+        if (userEmail !== 'default') {
+          localStorage.setItem(`kairo_tasks_${userEmail}`, JSON.stringify(updated));
+        }
+      } catch {}
+      return updated;
+    });
+
     if (activeProjectId === projId) {
       setActiveProjectId(null);
     }
@@ -304,7 +328,16 @@ function ChatWorkspaceContent() {
 
       if (res.ok) {
         const newProj = await res.json();
-        setProjects((prev) => [newProj, ...prev]);
+        setProjects((prev) => {
+          const updated = [newProj, ...prev.filter((p) => p.id !== newProj.id)];
+          try {
+            localStorage.setItem('kairo_projects', JSON.stringify(updated));
+            if (userEmail !== 'default') {
+              localStorage.setItem(`kairo_projects_${userEmail}`, JSON.stringify(updated));
+            }
+          } catch {}
+          return updated;
+        });
         setActiveProjectId(newProj.id);
         setActiveTaskId(null);
       }

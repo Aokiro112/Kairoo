@@ -43,7 +43,11 @@ projectsRouter.post('/', async (req: Request, res: Response) => {
 projectsRouter.delete('/:id', async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    await prisma.project.delete({ where: { id } });
+    await prisma.taskSession.updateMany({
+      where: { projectId: id },
+      data: { projectId: null },
+    });
+    await prisma.project.deleteMany({ where: { id } });
     res.json({ success: true, message: 'Project deleted' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
