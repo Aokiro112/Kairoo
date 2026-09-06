@@ -62,11 +62,21 @@ export default function RootLandingPage() {
   const [copiedTerminal, setCopiedTerminal] = useState(false);
   const [activeTab, setActiveTab] = useState<'vuln' | 'patch'>('vuln');
 
-  // Auto-redirect if user is already logged in
+  // Synchronous session check on mount to prevent any flash of landing page
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const session = getUserSession();
+      return !!(session && (session.email || session.name));
+    }
+    return false;
+  });
+
+  // Instant redirection
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const session = getUserSession();
       if (session && (session.email || session.name)) {
+        setIsLoggedIn(true);
         router.replace('/chat');
       }
     }
@@ -138,6 +148,13 @@ export default function RootLandingPage() {
     setCopiedTerminal(true);
     setTimeout(() => setCopiedTerminal(false), 2000);
   };
+
+  // If already logged in, do not render landing page UI to prevent any flash
+  if (isLoggedIn) {
+    return (
+      <div className="min-h-screen w-full bg-[#090909]" />
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-[#090909] text-[#F4F4F0] flex flex-col justify-between font-sans antialiased selection:bg-[#F4F4F0] selection:text-[#090909] relative overflow-x-hidden">
