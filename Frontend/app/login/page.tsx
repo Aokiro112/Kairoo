@@ -38,15 +38,20 @@ function AuthContent() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSuccess, setForgotSuccess] = useState(false);
 
+  const getRedirectTarget = () => {
+    const queryPrompt = searchParams.get('prompt');
+    return queryPrompt ? `/chat?prompt=${encodeURIComponent(queryPrompt)}` : '/chat';
+  };
+
   // Auto-redirect if already logged in and not explicitly logging out
   useEffect(() => {
     if (typeof window !== 'undefined' && searchParams.get('logout') !== 'true') {
       const activeSession = getUserSession();
       if (activeSession && (activeSession.email || activeSession.name)) {
-        router.replace('/chat');
+        window.location.href = getRedirectTarget();
       }
     }
-  }, [router, searchParams]);
+  }, [searchParams]);
 
   // Form states
   const [name, setName] = useState('');
@@ -78,7 +83,10 @@ function AuthContent() {
         if (data.user) {
           saveUserSession(data.user);
           setSuccessMessage('Authenticated with Google! Redirecting...');
-          setTimeout(() => router.push('/chat'), 400);
+          const target = getRedirectTarget();
+          setTimeout(() => {
+            window.location.href = target;
+          }, 300);
           return;
         }
       }
@@ -86,7 +94,10 @@ function AuthContent() {
 
     saveUserSession(googleUser);
     setSuccessMessage('Authenticated with Google! Redirecting...');
-    setTimeout(() => router.push('/chat'), 400);
+    const target = getRedirectTarget();
+    setTimeout(() => {
+      window.location.href = target;
+    }, 300);
   };
 
   // Check URL hash for OAuth redirect response
@@ -222,7 +233,10 @@ function AuthContent() {
         if (data.user) {
           saveUserSession(data.user);
           setSuccessMessage(mode === 'register' ? 'Account created! Redirecting...' : 'Authenticated! Redirecting...');
-          setTimeout(() => router.push('/chat'), 500);
+          const target = getRedirectTarget();
+          setTimeout(() => {
+            window.location.href = target;
+          }, 300);
           return;
         }
       }
@@ -239,9 +253,10 @@ function AuthContent() {
       tier: 'Community'
     });
     setSuccessMessage(mode === 'register' ? 'Account created successfully! Redirecting...' : 'Authenticated successfully! Redirecting...');
+    const target = getRedirectTarget();
     setTimeout(() => {
-      router.push('/chat');
-    }, 500);
+      window.location.href = target;
+    }, 300);
   };
 
   const handleForgotSubmit = (e: React.FormEvent) => {
