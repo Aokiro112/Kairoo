@@ -39,18 +39,35 @@ function ChatWorkspaceContent() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [userName, setUserName] = useState('Operator');
   const [userEmail, setUserEmail] = useState('default');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(() => {
+    if (typeof window !== 'undefined') {
+      const session = getUserSession();
+      return !!(session && (session.email || session.name));
+    }
+    return null;
+  });
   const abortControllerRef = useRef<AbortController | null>(null);
   const initialPromptHandled = useRef(false);
 
+  // Authentication check: redirect to /login if not authenticated
   useEffect(() => {
     const session = getUserSession();
-    if (session?.name) {
+    if (!session || (!session.email && !session.name)) {
+      setIsAuthenticated(false);
+      const queryPrompt = searchParams.get('prompt');
+      const target = queryPrompt ? `/login?prompt=${encodeURIComponent(queryPrompt)}` : '/login';
+      router.replace(target);
+      return;
+    }
+
+    setIsAuthenticated(true);
+    if (session.name) {
       setUserName(session.name.split(' ')[0] || session.name);
     }
-    if (session?.email) {
+    if (session.email) {
       setUserEmail(session.email);
     }
-  }, []);
+  }, [router, searchParams]);
 
   // Load projects and tasks from DB via backend APIs with non-destructive merge
   const fetchInitialData = async () => {
@@ -486,6 +503,15 @@ function ChatWorkspaceContent() {
       model: 'openai/gpt-4o',
     });
   };
+
+  // Block rendering and show minimal loader if unauthenticated
+  if (isAuthenticated === false || isAuthenticated === null) {
+    return (
+      <div className="min-h-screen w-full bg-[#090909] flex items-center justify-center">
+        <div className="w-5 h-5 rounded-full border border-[#2A2A28] border-t-[#F4F4F0] animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <main className="flex h-screen w-screen bg-[#090909] overflow-hidden text-[#F4F4F0] font-sans antialiased">
