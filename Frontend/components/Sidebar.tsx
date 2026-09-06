@@ -121,8 +121,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  // Filter tasks that are standalone (no project assigned)
-  const standaloneTasks = tasks.filter((t) => !t.projectId);
+  // Filter valid tasks that have actual conversation messages
+  const validTasks = tasks.filter(
+    (t) => t && t.id && Array.isArray(t.messages) && t.messages.length > 0
+  );
+  const standaloneTasks = validTasks.filter((t) => !t.projectId);
 
   return (
     <>
@@ -239,7 +242,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {projects.map((proj) => {
                       const isExpanded = !!expandedProjectIds[proj.id];
                       const isProjectActive = activeProjectId === proj.id;
-                      const projectTasks = tasks.filter((t) => t.projectId === proj.id);
+                      const projectTasks = validTasks.filter((t) => t.projectId === proj.id);
 
                       return (
                         <div 

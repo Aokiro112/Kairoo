@@ -47,8 +47,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   if (!isOpen) return null;
 
   const filteredTasks = tasks.filter((t) =>
-    t.title.toLowerCase().includes(query.toLowerCase()) ||
-    t.messages.some((m) => m.content?.toLowerCase().includes(query.toLowerCase()))
+    t && t.id && Array.isArray(t.messages) && t.messages.length > 0 &&
+    ((t.title && t.title.toLowerCase().includes(query.toLowerCase())) ||
+    t.messages.some((m) => m.content?.toLowerCase().includes(query.toLowerCase())))
   );
 
   return (

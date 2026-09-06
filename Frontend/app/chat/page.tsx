@@ -15,6 +15,17 @@ import { FolderOpen, MessageSquare, Globe, Code2, FileText, ArrowRight } from 'l
 import { motion } from 'framer-motion';
 import { getUserSession } from '@/lib/session';
 
+function generateTaskTitle(text: string): string {
+  const clean = text.trim().replace(/^https?:\/\//, '').replace(/[#*`_]/g, '');
+  const firstLine = clean.split('\n')[0].trim();
+  if (!firstLine) return 'Security Audit';
+  if (firstLine.length <= 36) {
+    return firstLine.charAt(0).toUpperCase() + firstLine.slice(1);
+  }
+  const truncated = firstLine.slice(0, 36).trim();
+  return (truncated.charAt(0).toUpperCase() + truncated.slice(1)) + '...';
+}
+
 function ChatWorkspaceContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -26,6 +37,7 @@ function ChatWorkspaceContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
   const [userName, setUserName] = useState('Operator');
+  const [userEmail, setUserEmail] = useState('default');
   const abortControllerRef = useRef<AbortController | null>(null);
   const initialPromptHandled = useRef(false);
 
@@ -34,9 +46,12 @@ function ChatWorkspaceContent() {
     if (session?.name) {
       setUserName(session.name.split(' ')[0] || session.name);
     }
+    if (session?.email) {
+      setUserEmail(session.email);
+    }
   }, []);
 
-  // Load projects and tasks from DB via backend APIs
+  // Load projects and tasks from DB via backend APIs with non-destructive merge
   const fetchInitialData = async () => {
     try {
       const [projRes, tasksRes] = await Promise.all([
@@ -53,9 +68,23 @@ function ChatWorkspaceContent() {
       }
       if (tasksRes.ok) {
         const tasksData = await tasksRes.json();
-        if (Array.isArray(tasksData) && tasksData.length > 0) {
-          setTasks(tasksData);
-          localStorage.setItem('kairo_tasks', JSON.stringify(tasksData));
+        if (Array.isArray(tasksData)) {
+          const validApiTasks: TaskSession[] = tasksData.filter(
+            (t: any) => t && t.id && Array.isArray(t.messages) && t.messages.length > 0
+          );
+          setTasks((prevTasks) => {
+            const taskMap = new Map<string, TaskSession>();
+            for (const task of validApiTasks) {
+              taskMap.set(task.id, task);
+            }
+            for (const task of prevTasks) {
+              if (task && task.id && Array.isArray(task.messages) && task.messages.length > 0) {
+                taskMap.set(task.id, task);
+              }
+            }
+            const merged = Array.from(taskMap.values());
+            return merged;
+          });
         }
       }
     } catch (e) {
@@ -63,17 +92,27 @@ function ChatWorkspaceContent() {
     }
   };
 
-  // Immediate localStorage hydration on mount
+  // Immediate localStorage hydration on mount with cleanup of mock/legacy keys
   useEffect(() => {
     try {
-      const savedTasks = localStorage.getItem('kairo_tasks') || localStorage.getItem('reindeer_tasks') || localStorage.getItem('hackerai_tasks');
+      localStorage.removeItem('reindeer_tasks');
+      localStorage.removeItem('hackerai_tasks');
+      localStorage.removeItem('reindeer_projects');
+      localStorage.removeItem('hackerai_projects');
+
+      const savedTasks = localStorage.getItem('kairo_tasks') || (userEmail !== 'default' ? localStorage.getItem(`kairo_tasks_${userEmail}`) : null);
       if (savedTasks) {
         const parsed = JSON.parse(savedTasks);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setTasks(parsed);
+        if (Array.isArray(parsed)) {
+          const valid = parsed.filter(
+            (t: any) => t && t.id && Array.isArray(t.messages) && t.messages.length > 0
+          );
+          if (valid.length > 0) {
+            setTasks(valid);
+          }
         }
       }
-      const savedProj = localStorage.getItem('kairo_projects') || localStorage.getItem('reindeer_projects') || localStorage.getItem('hackerai_projects');
+      const savedProj = localStorage.getItem('kairo_projects');
       if (savedProj) {
         const parsedProj = JSON.parse(savedProj);
         if (Array.isArray(parsedProj) && parsedProj.length > 0) {
@@ -83,18 +122,22 @@ function ChatWorkspaceContent() {
     } catch {}
 
     fetchInitialData();
-  }, []);
+  }, [userEmail]);
 
-  // Continuous auto-save tasks to localStorage
+  // Continuous auto-save valid tasks to localStorage
   useEffect(() => {
-    if (tasks.length > 0) {
-      try {
-        localStorage.setItem('kairo_tasks', JSON.stringify(tasks));
-      } catch (e) {
-        console.warn('Failed to persist tasks', e);
+    const validTasks = tasks.filter(
+      (t) => t && t.id && Array.isArray(t.messages) && t.messages.length > 0
+    );
+    try {
+      localStorage.setItem('kairo_tasks', JSON.stringify(validTasks));
+      if (userEmail && userEmail !== 'default') {
+        localStorage.setItem(`kairo_tasks_${userEmail}`, JSON.stringify(validTasks));
       }
+    } catch (e) {
+      console.warn('Failed to persist tasks', e);
     }
-  }, [tasks]);
+  }, [tasks, userEmail]);
 
   // Continuous auto-save projects to localStorage
   useEffect(() => {
@@ -171,7 +214,16 @@ function ChatWorkspaceContent() {
   };
 
   const handleDeleteTask = async (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+    setTasks((prev) => {
+      const updated = prev.filter((t) => t.id !== id);
+      try {
+        localStorage.setItem('kairo_tasks', JSON.stringify(updated));
+        if (userEmail !== 'default') {
+          localStorage.setItem(`kairo_tasks_${userEmail}`, JSON.stringify(updated));
+        }
+      } catch {}
+      return updated;
+    });
     if (activeTaskId === id) {
       setActiveTaskId(null);
     }
@@ -183,7 +235,16 @@ function ChatWorkspaceContent() {
   };
 
   const handleClearAllTasks = async () => {
-    setTasks((prev) => prev.filter((t) => t.projectId));
+    setTasks((prev) => {
+      const updated = prev.filter((t) => t.projectId);
+      try {
+        localStorage.setItem('kairo_tasks', JSON.stringify(updated));
+        if (userEmail !== 'default') {
+          localStorage.setItem(`kairo_tasks_${userEmail}`, JSON.stringify(updated));
+        }
+      } catch {}
+      return updated;
+    });
     if (activeTask && !activeTask.projectId) {
       setActiveTaskId(null);
     }
@@ -250,8 +311,7 @@ function ChatWorkspaceContent() {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    const firstLine = userText.split('\n')[0].replace(/^https?:\/\//, '').slice(0, 36);
-    const sessionTitle = firstLine ? firstLine.charAt(0).toUpperCase() + firstLine.slice(1) : 'Security Audit';
+    const sessionTitle = generateTaskTitle(userText);
 
     // Optimistically update state with User Message and Assistant placeholder
     if (!activeTaskId || !tasks.find((t) => t.id === activeTaskId)) {
@@ -271,6 +331,7 @@ function ChatWorkspaceContent() {
           t.id === activeTaskId
             ? {
                 ...t,
+                updatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 messages: [...t.messages, userMsg, initialAssistantMsg],
               }
             : t
@@ -282,6 +343,11 @@ function ChatWorkspaceContent() {
     abortControllerRef.current = new AbortController();
 
     try {
+      const outgoingMessages = (activeTask?.messages || [])
+        .filter((m) => m.content && m.content.trim())
+        .map((m) => ({ role: m.role, content: m.content }));
+      outgoingMessages.push({ role: 'user', content: userText });
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -290,10 +356,7 @@ function ChatWorkspaceContent() {
           projectId: activeProjectId,
           userMessageText: userText,
           model: options.model || 'openai/gpt-oss-120b',
-          messages: [
-            ...(activeTask?.messages || []).map((m) => ({ role: m.role, content: m.content })),
-            { role: 'user', content: userText },
-          ],
+          messages: outgoingMessages,
         }),
         signal: abortControllerRef.current.signal,
       });

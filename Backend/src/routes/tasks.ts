@@ -7,6 +7,11 @@ export const tasksRouter = Router();
 tasksRouter.get('/', async (req: Request, res: Response) => {
   try {
     const tasks = await prisma.taskSession.findMany({
+      where: {
+        messages: {
+          some: {},
+        },
+      },
       orderBy: { updatedAt: 'desc' },
       include: {
         messages: { orderBy: { createdAt: 'asc' } },
