@@ -2,7 +2,7 @@
 # HackerAI - Git Ignore Configuration
 # ==========================================
 
-# 1. Environment & Secrets (CRITICAL)
+# 1. Environment, Secrets & Keys (CRITICAL)
 # ------------------------------------------
 .env
 .env.*
@@ -17,6 +17,16 @@ Frontend/.env
 Frontend/.env.local
 !*.env.example
 !*.env.template
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+
+# Cloud Deployment CLI & Caches
+.vercel/
+.railway/
+
 
 # 2. Dependencies & Package Managers
 # ------------------------------------------
