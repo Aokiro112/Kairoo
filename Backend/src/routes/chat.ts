@@ -7,14 +7,15 @@ export const chatRouter = Router();
 // POST /api/chat - SSE streaming
 chatRouter.post('/', async (req: Request, res: Response) => {
   try {
-    const { taskId, projectId, messages, model, userMessageText } = req.body;
+    const { taskId, projectId, messages, model, userMessageText, attachments } = req.body;
 
-    if (!userMessageText || typeof userMessageText !== 'string') {
-      return res.status(400).json({ error: 'userMessageText is required' });
+    if ((!userMessageText || typeof userMessageText !== 'string') && (!attachments || !attachments.length)) {
+      return res.status(400).json({ error: 'userMessageText or attachments required' });
     }
 
     const currentTaskId = taskId || `task-${Date.now()}`;
-    const firstLine = userMessageText.split('\n')[0].replace(/^https?:\/\//, '').slice(0, 36);
+    const effectiveText = userMessageText || (attachments && attachments[0] ? `Audit artifact: ${attachments[0].name}` : 'Security Audit');
+    const firstLine = effectiveText.split('\n')[0].replace(/^https?:\/\//, '').slice(0, 36);
     const sessionTitle = firstLine ? firstLine.charAt(0).toUpperCase() + firstLine.slice(1) : 'Security Audit';
 
     // 1. Ensure TaskSession in DB
@@ -38,7 +39,8 @@ chatRouter.post('/', async (req: Request, res: Response) => {
         id: `msg-${Date.now()}`,
         taskId: currentTaskId,
         role: 'user',
-        content: userMessageText,
+        content: userMessageText || '',
+        attachmentsJson: attachments && attachments.length > 0 ? JSON.stringify(attachments) : null,
       },
     });
 
@@ -62,8 +64,9 @@ chatRouter.post('/', async (req: Request, res: Response) => {
     const accumulatedSteps: any[] = [];
 
     const agentStream = runSecurityAgentStream(
-      messages || [{ role: 'user', content: userMessageText }],
-      model
+      messages || [{ role: 'user', content: userMessageText || '' }],
+      model,
+      attachments
     );
 
     for await (const event of agentStream) {

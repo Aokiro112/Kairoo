@@ -11,7 +11,8 @@ import { ShareModal } from '@/components/modals/ShareModal';
 import { NewProjectModal } from '@/components/modals/NewProjectModal';
 import { ToolDetailModal } from '@/components/modals/ToolDetailModal';
 import { SettingsModal } from '@/components/modals/SettingsModal';
-import { TaskSession, ChatMessage, ToolCall, Project, AssistantStep } from '@/types/chat';
+import { FileViewerModal } from '@/components/modals/FileViewerModal';
+import { TaskSession, ChatMessage, ToolCall, Project, AssistantStep, AttachedFile } from '@/types/chat';
 import { FolderOpen, MessageSquare, Globe, Code2, FileText, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getUserSession } from '@/lib/session';
@@ -192,6 +193,7 @@ function ChatWorkspaceContent() {
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [selectedTool, setSelectedTool] = useState<ToolCall | null>(null);
+  const [selectedFileForView, setSelectedFileForView] = useState<AttachedFile | null>(null);
 
   // Auto-open settings if navigated with ?settings=true
   useEffect(() => {
@@ -349,7 +351,8 @@ function ChatWorkspaceContent() {
   // Real-time Streaming Security Agent Handler
   const handleSendMessage = async (
     userText: string,
-    options: { mode: string; target: string; model: string }
+    options: { mode: string; target: string; model: string },
+    attachments?: AttachedFile[]
   ) => {
     const currentTaskId = activeTaskId || `task-${Date.now()}`;
     const userMsgId = `msg-user-${Date.now()}`;
@@ -359,6 +362,7 @@ function ChatWorkspaceContent() {
       id: userMsgId,
       role: 'user',
       content: userText,
+      attachments: attachments && attachments.length > 0 ? attachments : undefined,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
@@ -370,7 +374,9 @@ function ChatWorkspaceContent() {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    const sessionTitle = generateTaskTitle(userText);
+    const sessionTitle = generateTaskTitle(
+      userText || (attachments && attachments[0] ? `Audit: ${attachments[0].name}` : 'Security Audit')
+    );
 
     // Optimistically update state with User Message and Assistant placeholder
     if (!activeTaskId || !tasks.find((t) => t.id === activeTaskId)) {
@@ -403,8 +409,8 @@ function ChatWorkspaceContent() {
 
     try {
       const outgoingMessages = (activeTask?.messages || [])
-        .filter((m) => m.content && m.content.trim())
-        .map((m) => ({ role: m.role, content: m.content }));
+        .filter((m) => (m.content && m.content.trim()) || (m.attachments && m.attachments.length > 0))
+        .map((m) => ({ role: m.role, content: m.content || '' }));
       outgoingMessages.push({ role: 'user', content: userText });
 
       const res = await fetch('/api/chat', {
@@ -414,6 +420,7 @@ function ChatWorkspaceContent() {
           taskId: currentTaskId,
           projectId: activeProjectId,
           userMessageText: userText,
+          attachments: attachments && attachments.length > 0 ? attachments : undefined,
           model: options.model || 'openai/gpt-oss-120b',
           messages: outgoingMessages,
         }),
@@ -799,6 +806,7 @@ function ChatWorkspaceContent() {
             <MessageList
               messages={activeTask?.messages || []}
               onToolClick={(tool) => setSelectedTool(tool)}
+              onFileClick={(file) => setSelectedFileForView(file)}
               isStreaming={isStreaming}
             />
             <div className="w-full">
@@ -838,6 +846,11 @@ function ChatWorkspaceContent() {
       <ToolDetailModal
         tool={selectedTool}
         onClose={() => setSelectedTool(null)}
+      />
+
+      <FileViewerModal
+        file={selectedFileForView}
+        onClose={() => setSelectedFileForView(null)}
       />
 
       <SettingsModal

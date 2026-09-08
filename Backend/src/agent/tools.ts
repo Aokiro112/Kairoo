@@ -891,19 +891,34 @@ export async function executeSecurityTool(
 
     case 'sast_code_security_audit': {
       const { language, codeSnippet } = args;
-      const detectedIssues = [];
+      const detectedIssues: string[] = [];
 
-      if (/SELECT\s+.*FROM.*(\+|`|\$\{).*(\bWHERE\b|\bAND\b)/i.test(codeSnippet)) {
-        detectedIssues.push('Potential SQL Injection via raw string concatenation');
+      if (/SELECT\s+.*FROM.*(\+|`|\$\{).*(\bWHERE\b|\bAND\b)/i.test(codeSnippet) || /execute\(\s*["'].*%s/i.test(codeSnippet)) {
+        detectedIssues.push('CWE-89: Potential SQL Injection via dynamic raw string concatenation');
       }
-      if (/exec\(|eval\(|child_process\.exec|os\.system|subprocess\.Popen/i.test(codeSnippet)) {
-        detectedIssues.push('Direct OS Command Injection / Arbitrary Code Execution sink');
+      if (/exec\(|eval\(|child_process\.exec|os\.system|subprocess\.Popen|shell_exec|system\(/i.test(codeSnippet)) {
+        detectedIssues.push('CWE-78: Direct OS Command / Arbitrary Code Execution sink detected');
       }
-      if (/fetch\(\s*req\.|requests\.get\(\s*request\./i.test(codeSnippet)) {
-        detectedIssues.push('Potential Server-Side Request Forgery (SSRF) endpoint');
+      if (/fetch\(\s*(req\.|request\.|params\.)|requests\.get\(\s*(request\.|params\.|url)/i.test(codeSnippet) || /curl_exec/i.test(codeSnippet)) {
+        detectedIssues.push('CWE-918: Potential Server-Side Request Forgery (SSRF) endpoint');
       }
-      if (/jwt\.verify\([^,]+,\s*["'][^"']+["']\)/i.test(codeSnippet)) {
-        detectedIssues.push('Hardcoded static secret key in JWT verification');
+      if (/jwt\.verify\([^,]+,\s*["'][^"']+["']\)|jwt\.sign\([^,]+,\s*["'][^"']+["']\)/i.test(codeSnippet)) {
+        detectedIssues.push('CWE-798: Hardcoded static JWT secret / signature key');
+      }
+      if (/AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|sk_live_[0-9a-zA-Z]{24}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/i.test(codeSnippet)) {
+        detectedIssues.push('CWE-312: High-entropy plaintext secret / API credentials embedded in source');
+      }
+      if (/fs\.readFile\(.*(req\.|params\.|query\.)|open\(.*(request\.|params\.)|readfile\(.*(\$_GET|\$_POST)/i.test(codeSnippet) || /\.\.\//i.test(codeSnippet)) {
+        detectedIssues.push('CWE-22: Improper input validation leading to Path Traversal');
+      }
+      if (/dangerouslySetInnerHTML|innerHTML\s*=|document\.write\(/i.test(codeSnippet) || /echo\s+\$_GET/i.test(codeSnippet)) {
+        detectedIssues.push('CWE-79: Unsanitized DOM/Template output (Cross-Site Scripting)');
+      }
+      if (/pickle\.loads|yaml\.load\([^,]+\)|unserialize\(/i.test(codeSnippet)) {
+        detectedIssues.push('CWE-502: Deserialization of untrusted data');
+      }
+      if (/DEBUG\s*=\s*True|process\.env\.NODE_ENV\s*!==\s*['"]production['"]/i.test(codeSnippet) && /django|flask|express/i.test(codeSnippet)) {
+        detectedIssues.push('CWE-489: Debug / verbose error mode enabled in production code');
       }
 
       return {
@@ -917,8 +932,8 @@ export async function executeSecurityTool(
             matchedResults:
               detectedIssues.length > 0
                 ? detectedIssues
-                : ['Static heuristic scan: No standard high-severity anti-patterns detected'],
-            rawOutput: `Analyzed ${codeSnippet.split('\n').length} lines of ${language} code.`,
+                : ['Static heuristic AST scan: No standard high-severity anti-patterns detected'],
+            rawOutput: `Analyzed ${codeSnippet.split('\n').length} lines of ${language} code.\nDetected Issues: ${detectedIssues.length}`,
           },
         },
         rawResult: { language, detectedIssues, lines: codeSnippet.split('\n').length },

@@ -26,11 +26,21 @@ export interface AssistantStep {
   isExpanded?: boolean;
 }
 
+export interface AttachedFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  content: string;
+  language: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content?: string;
   urlPreview?: string;
+  attachments?: AttachedFile[];
   steps?: AssistantStep[];
   timestamp: string;
 }

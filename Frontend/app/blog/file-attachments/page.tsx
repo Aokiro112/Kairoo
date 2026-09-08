@@ -44,13 +44,14 @@ export default function FileAttachmentsBlogPost() {
           className="w-full mb-10 pb-8 border-b border-[#1D1D1B]"
         >
           <div className="flex flex-wrap items-center gap-2.5 mb-4">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#181818] border border-[#282828] text-[#D0D0CC] font-mono text-[11px] font-medium">
-              Releasing Tomorrow
+            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#181818] border border-[#282828] text-[#D0D0CC] font-mono text-[11px] font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#B8FF3D] animate-pulse" />
+              Feature Live
             </span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#F4F4F0] mb-4 leading-tight font-sans">
-            Upcoming Feature: Direct File & Artifact Attachments in Kairo Workstation
+            Feature Released: Direct File & Artifact Attachments in Kairo Workstation
           </h1>
 
           <div className="flex items-center gap-4 text-xs text-[#70706C] font-mono">
@@ -70,7 +71,7 @@ export default function FileAttachmentsBlogPost() {
           className="w-full space-y-8 text-[#D5D5D0] leading-relaxed text-sm sm:text-base font-sans"
         >
           <p className="text-base sm:text-lg text-[#F4F4F0] leading-relaxed">
-            One of the most requested capabilities from security researchers and developers testing Kairo has been direct file uploads. Today, we are sharing a quick preview of our upcoming <strong>File & Artifact Attachments Engine</strong>, which is scheduled to roll out to all operators tomorrow.
+            Direct file attachments are now officially live in Kairo. Operators can upload multi-language source code, configuration manifests, and target scope lists (up to 3 files per message) directly through the chat workstation or via drag-and-drop.
           </p>
 
           <div>
@@ -88,7 +89,7 @@ export default function FileAttachmentsBlogPost() {
           <div className="border border-[#222220] bg-[#111111] rounded-xl p-5 sm:p-6 space-y-4">
             <div className="flex items-center gap-2 font-mono text-xs text-[#B8FF3D] font-bold uppercase">
               <Paperclip className="w-4 h-4" />
-              <span>What You Can Upload</span>
+              <span>What You Can Upload (Max 3 Files)</span>
             </div>
             <ul className="space-y-2.5 text-xs sm:text-sm text-[#CCCCCC]">
               <li className="flex items-start gap-2">
@@ -117,10 +118,10 @@ export default function FileAttachmentsBlogPost() {
 
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-[#F4F4F0] mb-3">
-              Release Timeline
+              Available Now in Workstation
             </h2>
             <p className="mb-4">
-              The feature is currently in final staging and security validation. The <strong>Plus (+) attachment button</strong> in the chat workstation is already configured and will become fully active tomorrow once the production deployment completes.
+              The feature is fully deployed. Click the <strong>Plus (+) attachment button</strong> in the chat workstation or drag and drop your code files directly into the prompt box to begin auditing.
             </p>
           </div>
 

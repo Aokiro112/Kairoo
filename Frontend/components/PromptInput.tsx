@@ -6,21 +6,77 @@ import {
   Square,
   ChevronDown,
   Paperclip,
-  FolderOpen,
-  Layers,
-  Search,
-  Zap,
-  Terminal,
-  Shield,
   FileCode,
   Globe,
   Monitor,
-  Cpu,
-  Plus
+  Plus,
+  X,
+  AlertCircle,
+  FileText,
+  Code2
 } from 'lucide-react';
+import { AttachedFile } from '@/types/chat';
+
+const MAX_ATTACHMENTS = 3;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+function detectLanguage(filename: string): string {
+  const lower = filename.toLowerCase();
+  const ext = lower.split('.').pop() || '';
+
+  if (lower === 'dockerfile' || lower.startsWith('dockerfile.')) return 'dockerfile';
+  if (lower === 'nginx.conf' || lower.endsWith('.nginx') || lower.endsWith('.conf')) return 'nginx';
+  if (lower.startsWith('.env')) return 'env';
+
+  const extMap: Record<string, string> = {
+    py: 'python',
+    ts: 'typescript',
+    tsx: 'typescript',
+    js: 'javascript',
+    jsx: 'javascript',
+    go: 'go',
+    rs: 'rust',
+    php: 'php',
+    java: 'java',
+    c: 'c',
+    cpp: 'cpp',
+    h: 'c',
+    hpp: 'cpp',
+    cs: 'csharp',
+    rb: 'ruby',
+    sh: 'bash',
+    bash: 'bash',
+    zsh: 'bash',
+    sql: 'sql',
+    json: 'json',
+    yml: 'yaml',
+    yaml: 'yaml',
+    sol: 'solidity',
+    html: 'html',
+    css: 'css',
+    xml: 'xml',
+    md: 'markdown',
+    txt: 'text',
+    csv: 'csv',
+    log: 'log',
+    nmap: 'text',
+  };
+
+  return extMap[ext] || 'text';
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 interface PromptInputProps {
-  onSendMessage: (text: string, options: { mode: string; target: string; model: string }) => void;
+  onSendMessage: (
+    text: string,
+    options: { mode: string; target: string; model: string },
+    attachments?: AttachedFile[]
+  ) => void;
   isLoading?: boolean;
   onStop?: () => void;
   placeholder?: string;
@@ -37,11 +93,15 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const [input, setInput] = useState(initialValue);
   const [mode, setMode] = useState('Ask');
   const [target, setTarget] = useState('Kairo Desktop');
+  const [attachments, setAttachments] = useState<AttachedFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const modelId = 'llama-3.3-70b-versatile';
 
   const [openDropdown, setOpenDropdown] = useState<'plus' | 'mode' | 'target' | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (initialValue) {
@@ -51,6 +111,14 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       }
     }
   }, [initialValue]);
+
+  // Auto-dismiss error message after 4s
+  useEffect(() => {
+    if (errorMessage) {
+      const t = setTimeout(() => setErrorMessage(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [errorMessage]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -71,12 +139,90 @@ export const PromptInput: React.FC<PromptInputProps> = ({
     }
   }, [input]);
 
+  const processFiles = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (!fileArray.length) return;
+
+    if (attachments.length + fileArray.length > MAX_ATTACHMENTS) {
+      setErrorMessage(`Maximum ${MAX_ATTACHMENTS} files allowed per message.`);
+      return;
+    }
+
+    const newAttachments: AttachedFile[] = [];
+
+    for (const file of fileArray) {
+      if (file.size > MAX_FILE_SIZE) {
+        setErrorMessage(`File "${file.name}" exceeds the 5MB size limit.`);
+        continue;
+      }
+
+      try {
+        const text = await file.text();
+        const lang = detectLanguage(file.name);
+        newAttachments.push({
+          id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          name: file.name,
+          size: file.size,
+          type: file.type || 'text/plain',
+          content: text,
+          language: lang,
+        });
+      } catch (err) {
+        console.error('Failed to read file', err);
+        setErrorMessage(`Could not read "${file.name}". Please attach text or code files.`);
+      }
+    }
+
+    if (newAttachments.length > 0) {
+      setAttachments((prev) => [...prev, ...newAttachments].slice(0, MAX_ATTACHMENTS));
+      setErrorMessage(null);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      processFiles(e.target.files);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(e.dataTransfer.files);
+    }
+  };
+
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    const trimmedInput = input.trim();
+    if ((!trimmedInput && attachments.length === 0) || isLoading) return;
 
-    onSendMessage(input.trim(), { mode, target, model: modelId });
+    const messageText = trimmedInput || (attachments.length > 0 ? 'Audit attached artifacts and source files for security vulnerabilities.' : '');
+
+    onSendMessage(messageText, { mode, target, model: modelId }, attachments);
     setInput('');
+    setAttachments([]);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -90,17 +236,89 @@ export const PromptInput: React.FC<PromptInputProps> = ({
     }
   };
 
+  const canSubmit = (input.trim().length > 0 || attachments.length > 0) && !isLoading;
+
   return (
     <div className="w-full flex justify-center pb-2 px-2 bg-transparent" ref={containerRef}>
-      <div className="w-full max-w-[760px] bg-[#121212] rounded-2xl border border-[#242424] shadow-2xl transition-all focus-within:border-[#3A3A3A] relative">
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        onChange={handleFileChange}
+        className="hidden"
+        accept=".py,.ts,.tsx,.js,.jsx,.go,.rs,.php,.java,.c,.cpp,.h,.hpp,.cs,.rb,.sh,.bash,.zsh,.sql,.json,.yml,.yaml,.sol,.html,.css,.xml,.md,.txt,.csv,.log,.env,.env.example,Dockerfile,nginx.conf,docker-compose.yml"
+      />
+
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`w-full max-w-[760px] bg-[#121212] rounded-2xl border transition-all shadow-2xl relative ${
+          isDragging
+            ? 'border-[#B8FF3D] bg-[#161A14] ring-1 ring-[#B8FF3D]/30'
+            : 'border-[#242424] focus-within:border-[#3A3A3A]'
+        }`}
+      >
+        {/* Error Notification Pill */}
+        {errorMessage && (
+          <div className="mx-3 mt-2 px-3 py-1.5 rounded-lg bg-red-950/40 border border-red-800/60 text-red-300 text-xs flex items-center justify-between font-mono animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="flex items-center gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+            <button
+              onClick={() => setErrorMessage(null)}
+              className="text-red-400 hover:text-white p-0.5"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+
+        {/* Attachment Pills Tray */}
+        {attachments.length > 0 && (
+          <div className="px-4 pt-3 pb-1 flex flex-wrap gap-2 items-center">
+            {attachments.map((file) => (
+              <div
+                key={file.id}
+                className="flex items-center gap-2 pl-2.5 pr-1.5 py-1 rounded-lg bg-[#1B1B1B] border border-[#2E2E2E] text-xs font-mono text-[#E4E4E0] shadow-sm animate-in fade-in zoom-in-95 duration-100"
+              >
+                <FileCode className="w-3.5 h-3.5 text-[#B8FF3D] shrink-0" />
+                <span className="font-medium max-w-[140px] truncate" title={file.name}>
+                  {file.name}
+                </span>
+                <span className="text-[10px] text-[#70706C]">
+                  {formatFileSize(file.size)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveAttachment(file.id)}
+                  className="w-4 h-4 rounded-full flex items-center justify-center text-[#70706C] hover:text-white hover:bg-[#282828] transition-colors ml-0.5"
+                  title="Remove file"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+            <span className="text-[11px] text-[#70706C] font-mono ml-1 select-none">
+              ({attachments.length}/{MAX_ATTACHMENTS})
+            </span>
+          </div>
+        )}
+
         {/* Main Textarea */}
-        <div className="px-4 pt-3.5 pb-2">
+        <div className="px-4 pt-3 pb-2">
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+            placeholder={
+              isDragging
+                ? 'Drop up to 3 code or artifact files here...'
+                : placeholder
+            }
             rows={1}
             disabled={isLoading}
             className="w-full bg-transparent text-[#F4F4F0] text-[14.5px] placeholder-[#666666] focus:outline-none resize-none max-h-[200px] leading-relaxed font-sans"
@@ -116,34 +334,50 @@ export const PromptInput: React.FC<PromptInputProps> = ({
               <button
                 type="button"
                 onClick={() => setOpenDropdown(openDropdown === 'plus' ? null : 'plus')}
-                className="w-7 h-7 rounded-full bg-[#1C1C1C] border border-[#2A2A2A] flex items-center justify-center text-[#888888] hover:text-white hover:bg-[#252525] transition-colors"
-                title="Attach or Tools"
+                className={`w-7 h-7 rounded-full border flex items-center justify-center transition-colors ${
+                  attachments.length > 0
+                    ? 'bg-[#B8FF3D]/10 border-[#B8FF3D]/40 text-[#B8FF3D]'
+                    : 'bg-[#1C1C1C] border-[#2A2A2A] text-[#888888] hover:text-white hover:bg-[#252525]'
+                }`}
+                title="Attach Files or Tools"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
 
               {openDropdown === 'plus' && (
-                <div className="absolute bottom-9 left-0 w-64 bg-[#141414] border border-[#2A2A2A] rounded-xl shadow-2xl p-3 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
-                  <div className="flex items-center justify-between mb-2 pb-2 border-b border-[#222222]">
+                <div className="absolute bottom-9 left-0 w-64 bg-[#141414] border border-[#2A2A2A] rounded-xl shadow-2xl p-2.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
+                  <div className="flex items-center justify-between mb-2 px-1 pb-1.5 border-b border-[#222222]">
                     <div className="flex items-center gap-1.5">
                       <Paperclip className="w-3.5 h-3.5 text-[#B8FF3D]" />
-                      <span className="font-bold text-[#F4F4F0]">Attach Files</span>
+                      <span className="font-bold text-[#F4F4F0]">Attachments & Scope</span>
                     </div>
-                    <span className="px-2 py-0.5 rounded-full bg-[#B8FF3D]/10 border border-[#B8FF3D]/30 text-[#B8FF3D] font-mono text-[10px] font-bold">
-                      Releasing Soon
+                    <span className="px-1.5 py-0.5 rounded bg-[#1C1C1C] text-[#888888] font-mono text-[10px]">
+                      Max {MAX_ATTACHMENTS}
                     </span>
                   </div>
-                  <p className="text-[11px] text-[#A0A0A0] leading-relaxed mb-3">
-                    Multi-file source code and artifact attachment is currently in final testing (releasing tomorrow).
-                  </p>
-                  <a
-                    href="/blog"
-                    onClick={() => setOpenDropdown(null)}
-                    className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-[#1E1E1E] hover:bg-[#282828] text-[#F4F4F0] font-mono text-[11px] font-semibold transition-colors border border-[#2C2C2C]"
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenDropdown(null);
+                      if (attachments.length >= MAX_ATTACHMENTS) {
+                        setErrorMessage(`Maximum ${MAX_ATTACHMENTS} files allowed per message.`);
+                        return;
+                      }
+                      fileInputRef.current?.click();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg bg-[#1B1B1B] hover:bg-[#252525] text-left text-[#F4F4F0] font-mono text-xs transition-colors border border-[#282828] mb-1.5 group"
                   >
-                    <span>Read Blog Announcement</span>
-                    <span className="text-[#B8FF3D]">→</span>
-                  </a>
+                    <FileCode className="w-4 h-4 text-[#B8FF3D] group-hover:scale-110 transition-transform" />
+                    <div>
+                      <div className="font-semibold text-[11.5px]">Upload Source & Configs</div>
+                      <div className="text-[10px] text-[#70706C]">.py, .ts, .go, .php, Dockerfile...</div>
+                    </div>
+                  </button>
+
+                  <div className="px-1 py-1 text-[10.5px] text-[#70706C] font-mono leading-relaxed">
+                    Tip: You can also drag and drop up to {MAX_ATTACHMENTS} code or artifact files directly into this box.
+                  </div>
                 </div>
               )}
             </div>
@@ -235,9 +469,9 @@ export const PromptInput: React.FC<PromptInputProps> = ({
               <button
                 type="button"
                 onClick={() => handleSubmit()}
-                disabled={!input.trim()}
+                disabled={!canSubmit}
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                  input.trim()
+                  canSubmit
                     ? 'bg-white text-black hover:bg-neutral-200 cursor-pointer shadow-md active:scale-95'
                     : 'bg-[#242424] text-[#555555] cursor-not-allowed'
                 }`}
@@ -252,3 +486,4 @@ export const PromptInput: React.FC<PromptInputProps> = ({
     </div>
   );
 };
+

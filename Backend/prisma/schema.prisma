@@ -32,7 +32,8 @@ model ChatMessage {
   taskId    String
   task      TaskSession @relation(fields: [taskId], references: [id], onDelete: Cascade)
   role      String      // "user" | "assistant"
-  content   String?
-  stepsJson String?     // Serialized AssistantStep[] (reasoning blocks, tool pills, etc.)
-  createdAt DateTime    @default(now())
+  content         String?
+  attachmentsJson String?     // Serialized AttachedFile[] (code snippets, scope files, artifacts)
+  stepsJson       String?     // Serialized AssistantStep[] (reasoning blocks, tool pills, etc.)
+  createdAt       DateTime    @default(now())
 }

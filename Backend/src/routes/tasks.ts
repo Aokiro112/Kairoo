@@ -26,15 +26,22 @@ tasksRouter.get('/', async (req: Request, res: Response) => {
       updatedAt: t.updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       messages: t.messages.map((m) => {
         let steps = undefined;
+        let attachments = undefined;
         if (m.stepsJson) {
           try {
             steps = JSON.parse(m.stepsJson);
+          } catch {}
+        }
+        if (m.attachmentsJson) {
+          try {
+            attachments = JSON.parse(m.attachmentsJson);
           } catch {}
         }
         return {
           id: m.id,
           role: m.role as 'user' | 'assistant',
           content: m.content || '',
+          attachments,
           steps,
           timestamp: m.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };

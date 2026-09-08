@@ -75,11 +75,13 @@ export const resolveModel = (requestedModel?: string): string => {
 
 export async function* runSecurityAgentStream(
   messages: Array<{ role: string; content: string }>,
-  model: string = 'openai/gpt-oss-120b'
+  model: string = 'openai/gpt-oss-120b',
+  attachments?: Array<{ id: string; name: string; size: number; content: string; language: string }>
 ): AsyncGenerator<StreamEvent> {
   const activeModel = resolveModel(model);
 
   const lastUserMsg = messages[messages.length - 1]?.content || '';
+  const hasAttachments = attachments && attachments.length > 0;
   const urlMatch =
     lastUserMsg.match(/https?:\/\/([^\/\s]+)/) ||
     lastUserMsg.match(/([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
@@ -146,6 +148,17 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
     return;
   }
 
+  // Format attachments block if present
+  let attachmentContextText = '';
+  if (hasAttachments) {
+    attachmentContextText = attachments
+      .map(
+        (att) =>
+          `\n--- ATTACHED ARTIFACT: ${att.name} (Language: ${att.language}, Size: ${att.size} bytes) ---\n\`\`\`${att.language}\n${att.content}\n\`\`\`\n`
+      )
+      .join('\n');
+  }
+
   // Fallback autonomous execution if no Groq API keys are loaded
   if (!groqKeyManager.hasKeys()) {
     yield {
@@ -153,7 +166,9 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
       data: {
         id: `step-reasoning-${Date.now()}`,
         type: 'reasoning',
-        text: targetDomain
+        text: hasAttachments
+          ? `Ingesting ${attachments.length} attached file(s) (${attachments.map((a) => a.name).join(', ')}). Formulating AST static code analysis and OWASP vulnerability evaluation.`
+          : targetDomain
           ? `Target domain \`${targetDomain}\` identified. Initiating non-destructive passive reconnaissance, TLS inspection, and HTTP security header analysis.`
           : `Analyzing query and conducting security audit reasoning workflow.`,
       },
@@ -161,7 +176,18 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
 
     const executedTools: ToolCall[] = [];
 
-    if (targetDomain) {
+    if (hasAttachments) {
+      for (const att of attachments) {
+        try {
+          const codeAudit = await executeSecurityTool('sast_code_security_audit', {
+            language: att.language,
+            codeSnippet: att.content,
+          });
+          codeAudit.toolCall.label = `SAST Code Audit (${att.name})`;
+          executedTools.push(codeAudit.toolCall);
+        } catch (e) {}
+      }
+    } else if (targetDomain) {
       try {
         const wafRes = await executeSecurityTool('waf_detection_wafw00f', {
           targetUrl: `https://${targetDomain}`,
@@ -192,6 +218,7 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
     } else {
       try {
         const codeAudit = await executeSecurityTool('sast_code_security_audit', {
+          language: 'generic',
           codeSnippet: lastUserMsg,
         });
         executedTools.push(codeAudit.toolCall);
@@ -209,7 +236,36 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
       };
     }
 
-    const fallbackReport = `### 🛡️ Security Audit & Reconnaissance Summary
+    const fallbackReport = hasAttachments
+      ? `### 🛡️ Static Code Security & Artifact Audit Summary
+
+**Audited Artifacts**: ${attachments.map((a) => `\`${a.name}\``).join(', ')}  
+**Assessment Engine**: Kairo Native SAST Matrix & Static AST Engine  
+**Status**: Completed (${executedTools.length} source file passes)
+
+---
+
+#### 1. File Inspection Findings
+
+| Artifact Name | Language | Status | Vulnerability Findings |
+| :--- | :--- | :--- | :--- |
+${executedTools
+  .map(
+    (t) =>
+      `| \`${t.label.replace('SAST Code Audit (', '').replace(')', '')}\` | \`Source Code\` | **${t.status.toUpperCase()}** | ${
+        t.resultDetails?.matchedResults?.join('; ') || 'No critical patterns detected'
+      } |`
+  )
+  .join('\n')}
+
+---
+
+#### 2. Key Security Recommendations & Remediation
+1. **Parameterized Queries**: Replace raw string interpolations in database queries with prepared statements / parameterized bindings.
+2. **Input Sanitization & Output Encoding**: Ensure all user-controlled inputs undergo context-aware sanitization before rendering or passing to backend routines.
+3. **Secrets Management**: Never commit static credentials, private keys, or API secrets directly in source files or environment templates.
+`
+      : `### 🛡️ Security Audit & Reconnaissance Summary
 
 **Target Asset**: \`${targetDomain || 'Local Analysis'}\`  
 **Assessment Engine**: Kairo Native Security Matrix  
@@ -256,9 +312,19 @@ ${executedTools
     }));
 
     // Complete conversation context (all past user, assistant, system prompts)
+    const formattedHistory = messages.map((m, idx) => {
+      if (idx === messages.length - 1 && hasAttachments) {
+        return {
+          role: m.role,
+          content: `${m.content || ''}\n\n${attachmentContextText}`,
+        };
+      }
+      return { role: m.role, content: m.content || '' };
+    });
+
     const conversationHistory: any[] = [
       { role: 'system', content: SECURITY_AGENT_SYSTEM_PROMPT },
-      ...messages.map((m) => ({ role: m.role, content: m.content || '' })),
+      ...formattedHistory,
     ];
 
     yield {
@@ -266,7 +332,9 @@ ${executedTools
       data: {
         id: `step-reasoning-${Date.now()}`,
         type: 'reasoning',
-        text: targetDomain
+        text: hasAttachments
+          ? `Ingesting ${attachments.length} attached file(s) (${attachments.map((a) => a.name).join(', ')}). Formulating Static AST code analysis and vulnerability verification workflow.`
+          : targetDomain
           ? `Target \`${targetDomain}\` detected. Formulating diagnostic reconnaissance workflow and attack surface mapping.`
           : `Analyzing query, security requirements, and threat landscape.`,
       },

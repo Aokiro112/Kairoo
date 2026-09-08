@@ -1,19 +1,21 @@
 'use client';
 
 import React, { useRef, useEffect } from 'react';
-import { ChatMessage, ToolCall } from '@/types/chat';
+import { ChatMessage, ToolCall, AttachedFile } from '@/types/chat';
 import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
 
 interface MessageListProps {
   messages: ChatMessage[];
   onToolClick: (tool: ToolCall) => void;
+  onFileClick?: (file: AttachedFile) => void;
   isStreaming?: boolean;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
   messages,
   onToolClick,
+  onFileClick,
   isStreaming = false,
 }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -26,7 +28,13 @@ export const MessageList: React.FC<MessageListProps> = ({
     <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4 space-y-6 max-w-4xl mx-auto w-full">
       {messages.map((message) => {
         if (message.role === 'user') {
-          return <UserMessage key={message.id} message={message} />;
+          return (
+            <UserMessage
+              key={message.id}
+              message={message}
+              onFileClick={onFileClick}
+            />
+          );
         }
         return (
           <AssistantMessage

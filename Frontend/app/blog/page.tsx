@@ -18,9 +18,9 @@ export default function BlogListingPage() {
     {
       slug: 'file-attachments',
       badge: 'Product Update',
-      status: 'Releasing Tomorrow',
-      title: 'Upcoming Feature: Direct File & Artifact Attachments in Kairo Workstation',
-      excerpt: 'We are introducing direct multi-file attachments in Kairo. Soon you can upload source code, network logs, and target scope files directly into the autonomous ReAct agent loop for instant vulnerability auditing.',
+      status: 'Feature Live',
+      title: 'Feature Released: Direct File & Artifact Attachments in Kairo Workstation',
+      excerpt: 'Direct multi-file attachments are now live in Kairo. Upload source code, configuration files, and target scope lists (up to 3 files per prompt) directly into the autonomous ReAct agent loop for instant Static AST vulnerability auditing.',
       date: 'September 9, 2026',
       readTime: '2 min read',
       author: 'Kairo Core Team',
