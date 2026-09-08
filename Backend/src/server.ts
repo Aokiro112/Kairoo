@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { projectsRouter } from './routes/projects';
 import { tasksRouter } from './routes/tasks';
@@ -12,7 +14,42 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS configuration for kairo.bond, Vercel deployments, and local development
+// 1. HTTP Security Headers with Helmet
+app.use(
+  helmet({
+    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: false, // Handled per-page on frontend
+  })
+);
+
+// 2. Global & Endpoint Rate Limiting (DoS & Brute Force Protection)
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // Limit each IP to 300 requests per 15 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP, please try again after 15 minutes.' },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // Limit each IP to 30 auth requests per 15 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many authentication attempts. Please try again after 15 minutes.' },
+});
+
+const chatLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 60, // Limit each IP to 60 chat streams per 10 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many security scan requests. Please wait a moment before trying again.' },
+});
+
+app.use(globalLimiter);
+
+// 3. CORS configuration for kairo.bond, Vercel deployments, and local development
 const allowedOrigins = [
   'https://kairo.bond',
   'https://www.kairo.bond',
@@ -38,14 +75,15 @@ app.use(
   })
 );
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// 4. Strict Payload Boundaries (10MB Cap)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// API Routes
-app.use('/api/auth', authRouter);
+// 5. API Routes with Targeted Rate Limits
+app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/tasks', tasksRouter);
-app.use('/api/chat', chatRouter);
+app.use('/api/chat', chatLimiter, chatRouter);
 
 // Groq Key Pool Diagnostic Route
 app.get('/api/groq/keys', (req, res) => {

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import dotenv from 'dotenv';
+import { generateAuthToken } from '../middleware/auth';
 dotenv.config();
 
 export const authRouter = Router();
@@ -14,7 +15,6 @@ authRouter.post('/google', async (req, res) => {
 
     // 1. If Google ID token or Access token is provided
     if (token) {
-      // First try id_token endpoint
       let googleUser: any = null;
       try {
         const idTokenRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
@@ -23,7 +23,6 @@ authRouter.post('/google', async (req, res) => {
         }
       } catch {}
 
-      // If id_token failed, try access_token userinfo endpoint
       if (!googleUser || !googleUser.email) {
         try {
           const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -36,17 +35,21 @@ authRouter.post('/google', async (req, res) => {
       }
 
       if (googleUser && googleUser.email) {
+        const userData = {
+          id: googleUser.sub || googleUser.id || 'google_' + Date.now(),
+          email: googleUser.email,
+          name: googleUser.name || googleUser.email.split('@')[0],
+          picture: googleUser.picture,
+          provider: 'google',
+          role: 'Security Operator',
+          tier: 'Community'
+        };
+        const authToken = generateAuthToken(userData);
+
         return res.json({
           success: true,
-          user: {
-            id: googleUser.sub || googleUser.id || 'google_' + Date.now(),
-            email: googleUser.email,
-            name: googleUser.name || googleUser.email.split('@')[0],
-            picture: googleUser.picture,
-            provider: 'google',
-            role: 'Security Operator',
-            tier: 'Community'
-          }
+          token: authToken,
+          user: userData
         });
       }
     }
@@ -74,17 +77,20 @@ authRouter.post('/google', async (req, res) => {
             });
             if (userinfoRes.ok) {
               const googleUser = (await userinfoRes.json()) as any;
+              const userData = {
+                id: googleUser.sub || googleUser.id,
+                email: googleUser.email,
+                name: googleUser.name || googleUser.email.split('@')[0],
+                picture: googleUser.picture,
+                provider: 'google',
+                role: 'Security Operator',
+                tier: 'Community'
+              };
+              const authToken = generateAuthToken(userData);
               return res.json({
                 success: true,
-                user: {
-                  id: googleUser.sub || googleUser.id,
-                  email: googleUser.email,
-                  name: googleUser.name || googleUser.email.split('@')[0],
-                  picture: googleUser.picture,
-                  provider: 'google',
-                  role: 'Security Operator',
-                  tier: 'Community'
-                }
+                token: authToken,
+                user: userData
               });
             }
           }
@@ -96,31 +102,37 @@ authRouter.post('/google', async (req, res) => {
 
     // 3. If client passed a verified user payload directly
     if (user && user.email) {
+      const userData = {
+        id: user.id || 'google_' + Date.now(),
+        email: user.email,
+        name: user.name || user.email.split('@')[0],
+        picture: user.picture,
+        provider: 'google',
+        role: 'Security Operator',
+        tier: 'Community'
+      };
+      const authToken = generateAuthToken(userData);
       return res.json({
         success: true,
-        user: {
-          id: user.id || 'google_' + Date.now(),
-          email: user.email,
-          name: user.name || user.email.split('@')[0],
-          picture: user.picture,
-          provider: 'google',
-          role: 'Security Operator',
-          tier: 'Community'
-        }
+        token: authToken,
+        user: userData
       });
     }
 
     // Fallback: Default session confirmation
+    const fallbackUser = {
+      id: 'google_user_' + Date.now(),
+      email: req.body.email || 'operator@kairo.bond',
+      name: req.body.name || 'Security Operator',
+      provider: 'google',
+      role: 'Security Operator',
+      tier: 'Community'
+    };
+    const authToken = generateAuthToken(fallbackUser);
     return res.json({
       success: true,
-      user: {
-        id: 'google_user_' + Date.now(),
-        email: req.body.email || 'operator@kairo.bond',
-        name: req.body.name || 'Security Operator',
-        provider: 'google',
-        role: 'Security Operator',
-        tier: 'Community'
-      }
+      token: authToken,
+      user: fallbackUser
     });
   } catch (error: any) {
     console.error('Google OAuth backend error:', error);
@@ -136,16 +148,20 @@ authRouter.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password required' });
     }
 
+    const userData = {
+      id: 'usr_' + Buffer.from(email).toString('hex').slice(0, 10),
+      email,
+      name: email.split('@')[0],
+      provider: 'credentials',
+      role: 'Security Operator',
+      tier: 'Community'
+    };
+    const authToken = generateAuthToken(userData);
+
     return res.json({
       success: true,
-      user: {
-        id: 'usr_' + Buffer.from(email).toString('hex').slice(0, 10),
-        email,
-        name: email.split('@')[0],
-        provider: 'credentials',
-        role: 'Security Operator',
-        tier: 'Community'
-      }
+      token: authToken,
+      user: userData
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -160,16 +176,20 @@ authRouter.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
+    const userData = {
+      id: 'usr_' + Date.now(),
+      email,
+      name,
+      provider: 'credentials',
+      role: 'Security Operator',
+      tier: 'Community'
+    };
+    const authToken = generateAuthToken(userData);
+
     return res.json({
       success: true,
-      user: {
-        id: 'usr_' + Date.now(),
-        email,
-        name,
-        provider: 'credentials',
-        role: 'Security Operator',
-        tier: 'Community'
-      }
+      token: authToken,
+      user: userData
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

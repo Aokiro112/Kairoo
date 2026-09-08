@@ -161,14 +161,15 @@ export function validateTargetScope(target: string): { allowed: boolean; reason?
     return { allowed: false, reason: 'Invalid or missing target parameter.' };
   }
 
-  const clean = target
+  let clean = decodeURIComponent(target)
     .trim()
     .toLowerCase()
     .replace(/^https?:\/\//, '')
     .split('/')[0]
-    .split(':')[0];
+    .split(':')[0]
+    .replace(/[\[\]]/g, '');
 
-  if (!clean || clean.length < 3) {
+  if (!clean || clean.length < 2) {
     return { allowed: false, reason: 'Target host is invalid or too short.' };
   }
 
@@ -180,9 +181,12 @@ export function validateTargetScope(target: string): { allowed: boolean; reason?
     '127.0.0.1',
     '0.0.0.0',
     '::1',
+    '::',
     '169.254.169.254',
     'metadata.google.internal',
+    'metadata',
     'instance-data',
+    'wmt.google.internal',
   ];
 
   if (blockedHosts.some((h) => clean === h || clean.endsWith(`.${h}`))) {
@@ -192,7 +196,56 @@ export function validateTargetScope(target: string): { allowed: boolean; reason?
     };
   }
 
-  // Block private and loopback IPv4 ranges (SSRF prevention)
+  // Block dynamic wildcard DNS services resolving to localhost / internal IPs
+  const dynamicLocalDns = ['nip.io', 'sslip.io', 'xip.io', 'localtest.me', 'lvh.me', 'vcap.me', 'burpcollaborator.net'];
+  if (dynamicLocalDns.some((d) => clean === d || clean.endsWith(`.${d}`))) {
+    if (clean.includes('127.0.0.1') || clean.includes('169.254') || clean.includes('10.') || clean.includes('192.168.') || clean.includes('172.')) {
+      return {
+        allowed: false,
+        reason: `🛡️ Target '${clean}' uses wildcard DNS mapping to internal/loopback network. Restricted.`,
+      };
+    }
+  }
+
+  // Check IPv6 loopback, link-local, and site-local
+  if (
+    clean === '::1' ||
+    clean === '0:0:0:0:0:0:0:1' ||
+    clean.startsWith('fe80:') ||
+    clean.startsWith('fc00:') ||
+    clean.startsWith('fd00:') ||
+    clean.includes('::ffff:127.') ||
+    clean.includes('::ffff:10.') ||
+    clean.includes('::ffff:192.168.')
+  ) {
+    return {
+      allowed: false,
+      reason: `🛡️ Target IPv6 '${clean}' is a loopback or private site-local address. Restricted.`,
+    };
+  }
+
+  // Check numeric integer/decimal representations of IP (e.g. 2130706433 -> 127.0.0.1, 2852039166 -> 169.254.169.254)
+  if (/^\d{8,11}$/.test(clean)) {
+    const num = parseInt(clean, 10);
+    const byte1 = (num >>> 24) & 255;
+    const byte2 = (num >>> 16) & 255;
+    if (byte1 === 127 || byte1 === 10 || byte1 === 0 || (byte1 === 169 && byte2 === 254) || (byte1 === 192 && byte2 === 168) || (byte1 === 172 && byte2 >= 16 && byte2 <= 31)) {
+      return {
+        allowed: false,
+        reason: `🛡️ Target decimal IP '${clean}' translates to a restricted subnet. Probing prohibited.`,
+      };
+    }
+  }
+
+  // Check Hexadecimal IP representations (e.g., 0x7f000001, 0x7f.1)
+  if (/^0x[0-9a-fA-F]+/i.test(clean)) {
+    return {
+      allowed: false,
+      reason: `🛡️ Hex-encoded IP addresses are restricted for defensive scope safety.`,
+    };
+  }
+
+  // Block standard private and loopback IPv4 ranges (SSRF prevention)
   const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
   const ipMatch = clean.match(ipv4Regex);
   if (ipMatch) {
