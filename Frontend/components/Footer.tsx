@@ -27,7 +27,7 @@ export function Footer() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#B8FF3D] opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#B8FF3D]"></span>
             </span>
-            <span>SYSTEM OPERATIONAL (99.99%)</span>
+            <span>SYSTEM OPERATIONAL</span>
             <span>•</span>
             <span>v2.4.0-prod</span>
           </div>

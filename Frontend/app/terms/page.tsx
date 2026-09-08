@@ -62,9 +62,9 @@ export default function TermsPage() {
     },
     {
       id: '06',
-      title: 'Service Availability & SLA Guarantees',
+      title: 'Service Availability & Infrastructure',
       content: [
-        'We target 99.99% platform availability across our global edge networks and high-performance inference clusters.',
+        'We strive to maintain high platform availability across our global edge networks and inference services.',
         'Scheduled maintenance windows are communicated in advance. Kairo shall not be liable for transient third-party infrastructure interruptions or network latency.'
       ]
     },

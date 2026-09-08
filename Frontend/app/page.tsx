@@ -691,7 +691,7 @@ export default function RootLandingPage() {
                 <div className="font-mono text-xs text-[#686865] mb-3">02 / CODE & API AUDITING</div>
                 <h3 className="text-lg font-bold text-[#F4F4F0] mb-2 group-hover:text-white transition-colors">Static AST & Dynamic API Fuzzing</h3>
                 <p className="text-sm text-[#A3A3A0] leading-relaxed">
-                  Deep AST semantic analysis to spot SQL injection, Cross-Site Scripting (XSS), IDOR vulnerabilities, and OpenAPI contract fuzzing with zero false positives.
+                  Deep AST semantic analysis to spot SQL injection, Cross-Site Scripting (XSS), IDOR vulnerabilities, and OpenAPI contract fuzzing.
                 </p>
               </div>
               <div className="mt-6 pt-4 border-t border-[#1D1D1B] font-mono text-[11px] text-[#686865] flex items-center justify-between">

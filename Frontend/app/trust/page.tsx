@@ -23,25 +23,25 @@ export default function TrustCenterPage() {
     {
       title: 'Zero Training Policy',
       desc: 'All user queries, AST code scans, and vulnerability reports are strictly excluded from AI training datasets.',
-      status: 'VERIFIED ACTIVE',
+      badge: 'POLICY : ZERO_TRAINING',
       icon: EyeOff
     },
     {
       title: 'Local-First SQLite Storage',
       desc: 'Audit telemetry and scan sessions reside strictly in your private local SQLite database instance.',
-      status: 'VERIFIED ACTIVE',
+      badge: 'STORAGE : LOCAL_SQLITE',
       icon: Database
     },
     {
       title: 'End-to-End Cryptography',
       desc: 'TLS 1.3 with Perfect Forward Secrecy across all workstation client and secure backend inference connections.',
-      status: 'VERIFIED ACTIVE',
+      badge: 'TRANSPORT : TLS_1_3',
       icon: Lock
     },
     {
       title: 'Non-Destructive Guardrails',
       desc: 'Autonomous probes enforce safety boundaries to prevent production downtime or data alteration.',
-      status: 'VERIFIED ACTIVE',
+      badge: 'SAFETY : NON_DESTRUCTIVE',
       icon: ShieldCheck
     }
   ];
@@ -67,11 +67,11 @@ export default function TrustCenterPage() {
               Kairo Trust & Compliance Center
             </h1>
             <p className="text-base sm:text-lg text-[#A3A3A0] leading-relaxed mb-6">
-              Real-time verification of security commitments, privacy guardrails, and compliance architecture.
+              Overview of security commitments, privacy guardrails, and platform architecture.
             </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111111] border border-[#2A2A28] font-mono text-xs text-[#B8FF3D]">
-              <span className="w-2 h-2 rounded-full bg-[#B8FF3D] animate-ping" />
-              <span>ALL SECURITY CONTROLS OPERATIONAL</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111111] border border-[#2A2A28] font-mono text-xs text-[#A3A3A0]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#B8FF3D]" />
+              <span>SECURITY ARCHITECTURE & CONTROLS</span>
             </div>
           </motion.div>
         </div>
@@ -84,11 +84,11 @@ export default function TrustCenterPage() {
               <div key={idx} className="bg-[#0D0D0D] p-6 sm:p-8 flex flex-col justify-between hover:bg-[#111111] transition-colors">
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-9 h-9 rounded bg-[#161616] border border-[#2A2A28] flex items-center justify-center text-[#B8FF3D]">
+                    <div className="w-9 h-9 rounded bg-[#161616] border border-[#2A2A28] flex items-center justify-center text-[#F4F4F0]">
                       <Icon className="w-4 h-4" />
                     </div>
-                    <span className="font-mono text-[10px] text-[#B8FF3D] px-2 py-0.5 rounded bg-[#B8FF3D]/10 border border-[#B8FF3D]/30">
-                      {item.status}
+                    <span className="font-mono text-[10px] text-[#A3A3A0] px-2 py-0.5 rounded bg-[#161616] border border-[#2A2A28]">
+                      {item.badge}
                     </span>
                   </div>
                   <h2 className="text-lg font-bold text-[#F4F4F0] mb-2">{item.title}</h2>
