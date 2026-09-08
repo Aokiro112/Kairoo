@@ -38,7 +38,7 @@ export default function SecurityPage() {
     },
     {
       title: 'End to End Cryptographic Security',
-      desc: 'All communications between workstation clients and Groq inference endpoints are secured via TLS 1.3 with forward secrecy.',
+      desc: 'All communications between workstation clients and backend inference endpoints are secured via TLS 1.3 with forward secrecy.',
       icon: Lock,
       badge: 'CRYPTO : TLS_1_3'
     }

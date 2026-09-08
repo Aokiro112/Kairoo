@@ -155,7 +155,7 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
         type: 'reasoning',
         text: targetDomain
           ? `Target domain \`${targetDomain}\` identified. Initiating non-destructive passive reconnaissance, TLS inspection, and HTTP security header analysis.`
-          : `Analyzing query and conducting security audit reasoning loop. (Note: Add your \`GROQ_API_KEYS\` to \`Backend/.env\` to enable live custom Groq LLM streaming).`,
+          : `Analyzing query and conducting security audit reasoning workflow.`,
       },
     };
 
@@ -267,8 +267,8 @@ ${executedTools
         id: `step-reasoning-${Date.now()}`,
         type: 'reasoning',
         text: targetDomain
-          ? `Target \`${targetDomain}\` detected. Planning diagnostic reconnaissance workflow with \`Groq LPU (GPT OSS 120B)\` (Auto Key Rotation Active).`
-          : `Analyzing query and formulating cybersecurity assessment with \`Groq LPU (GPT OSS 120B)\` (Auto Key Rotation Active).`,
+          ? `Target \`${targetDomain}\` detected. Formulating diagnostic reconnaissance workflow and attack surface mapping.`
+          : `Analyzing query, security requirements, and threat landscape.`,
       },
     };
 

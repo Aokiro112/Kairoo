@@ -264,7 +264,7 @@ export async function executeSecurityTool(
             resultDetails: {
               statusCode: 200,
               responseTime: `${Date.now() - startTime}ms`,
-              matchedResults: [detected, `Runner: Isolated Docker Security Engine`],
+              matchedResults: [detected],
               rawOutput: dockerRes.stdout,
             },
           },
@@ -354,7 +354,6 @@ export async function executeSecurityTool(
               responseTime: `${Date.now() - startTime}ms`,
               matchedResults: [
                 `Discovered Subdomains (${foundSubdomains.length}): ${foundSubdomains.slice(0, 8).join(', ')}${foundSubdomains.length > 8 ? '...' : ''}`,
-                `Runner: Isolated Docker Security Engine`,
               ],
               rawOutput: dockerRes.stdout,
             },
@@ -448,7 +447,6 @@ export async function executeSecurityTool(
               responseTime: `${Date.now() - startTime}ms`,
               matchedResults: [
                 `Open Ports & Services (${lines.length}): ${lines.slice(0, 5).join(' | ')}`,
-                `Runner: Nmap v7.95 (Docker Sandbox)`,
               ],
               rawOutput: dockerRes.stdout,
             },
@@ -553,7 +551,6 @@ export async function executeSecurityTool(
               responseTime: `${Date.now() - startTime}ms`,
               matchedResults: [
                 `Findings (${matches.length}): ${matches.slice(0, 4).join(', ')}${matches.length > 4 ? '...' : ''}`,
-                `Runner: Nuclei v3 (Docker Security Engine)`,
               ],
               rawOutput: dockerRes.stdout,
             },

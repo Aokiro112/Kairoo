@@ -30,8 +30,8 @@ export default function ProductPage() {
     },
     {
       id: '02',
-      title: 'Multi-Key Groq LPU Acceleration',
-      desc: 'Sub-second inference speeds powered by Groq LPU clusters with automatic multi-key failover pools, guaranteeing zero downtime and uninterrupted security scanning.',
+      title: 'High-Performance Distributed Inference',
+      desc: 'Sub-second inference speeds powered by distributed neural clusters with automatic failover pools, guaranteeing zero downtime and uninterrupted security scanning.',
       badge: 'PERFORMANCE : SUB_SECOND'
     },
     {
@@ -98,7 +98,7 @@ export default function ProductPage() {
 
           <div className="p-5 sm:p-6 space-y-2 text-[12px] leading-relaxed select-text">
             <div className="text-[#686865]">$ kairo scan --target https://api.prod.company.com --profile owasp-full</div>
-            <div className="text-[#A3A3A0]">[0.02s] Initializing autonomous security agent with Groq LPU engine...</div>
+            <div className="text-[#A3A3A0]">[0.02s] Initializing autonomous security agent intelligence engine...</div>
             <div className="text-[#A3A3A0]">[0.41s] DNS & Subdomain mapping: 18 active services discovered</div>
             <div className="text-[#A3A3A0]">[1.12s] Port scan: 443 (HTTPS/TLS 1.3), 80 (HTTP 301 Redirect)</div>
             <div className="text-[#FF9F43]">[2.08s] [WARN] CORS misconfiguration detected on /api/v2/auth</div>

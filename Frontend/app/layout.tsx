@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     "Wafw00f WAF detection",
     "Nuclei vulnerability scan",
     "offensive security",
-    "Groq LPU Llama 3.3",
+    "high-speed AI reasoning",
     "attack surface mapping",
     "reconnaissance workspace",
     "DevSecOps copilot",

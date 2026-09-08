@@ -42,7 +42,7 @@ export default function PrivacyPolicyPage() {
       id: '03',
       title: 'Data in Transit & Cryptographic Protocols',
       content: [
-        'All network traffic between your client workstation and our Groq LPU inference clusters is protected via TLS 1.3 with Perfect Forward Secrecy and strong AEAD cipher suites.',
+        'All network traffic between your client workstation and our secure inference clusters is protected via TLS 1.3 with Perfect Forward Secrecy and strong AEAD cipher suites.',
         'API keys and session tokens are held in volatile browser memory and are never written to unencrypted persistent storage on our servers.'
       ]
     },
@@ -67,7 +67,7 @@ export default function PrivacyPolicyPage() {
       title: 'Subprocessors & Infrastructure Compliance',
       content: [
         'We work exclusively with enterprise infrastructure providers bound by strict Data Processing Agreements (DPAs) and SOC 2 Type II certifications.',
-        'Our subprocessor roster includes Groq Inc. (for high-speed LPU inference with zero data retention) and Vercel Inc. (for static asset edge delivery).'
+        'Our subprocessor roster includes enterprise edge and inference providers operating under strict zero data retention agreements, along with Vercel Inc. (for static asset edge delivery).'
       ]
     },
     {

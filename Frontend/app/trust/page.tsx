@@ -34,7 +34,7 @@ export default function TrustCenterPage() {
     },
     {
       title: 'End-to-End Cryptography',
-      desc: 'TLS 1.3 with Perfect Forward Secrecy across all workstation client and Groq LPU inference connections.',
+      desc: 'TLS 1.3 with Perfect Forward Secrecy across all workstation client and secure backend inference connections.',
       status: 'VERIFIED ACTIVE',
       icon: Lock
     },

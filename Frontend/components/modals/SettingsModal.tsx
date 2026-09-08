@@ -215,7 +215,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           <div className="hidden md:block px-3 py-2 border-t border-[#1A1A1A] text-[11px] font-mono text-[#555555]">
-            Kairo OS 1.2 • Groq LPU
+            Kairo OS 1.2 • Intelligence Engine
           </div>
         </div>
 
@@ -306,7 +306,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div>
                   <h3 className="text-base font-semibold text-white tracking-tight">AI & Inference Engine</h3>
                   <p className="text-xs text-[#777777] mt-0.5">
-                    Configure Groq LPU inference, reasoning chains, and autonomous agent behavior.
+                    Configure inference engines, reasoning chains, and autonomous agent behavior.
                   </p>
                 </div>
 
@@ -324,7 +324,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       }}
                       className="w-full bg-[#161616] border border-[#2A2A2A] focus:border-[#444444] rounded-xl px-3.5 py-2 text-white text-sm focus:outline-none transition-colors font-mono"
                     >
-                      <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Recommended • Ultra-Fast Groq LPU)</option>
+                      <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Recommended • Fast Reasoning)</option>
                       <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Sub-100ms Reconnaissance)</option>
                       <option value="openai/gpt-oss-120b">GPT-OSS 120B (High-Reasoning Vulnerability Synthesis)</option>
                     </select>
@@ -377,10 +377,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </select>
                   </div>
 
-                  {/* Custom Groq API Key (BYOK) */}
+                  {/* Custom API Key (BYOK) */}
                   <div>
                     <label className="block text-xs font-mono text-[#999999] mb-1.5 uppercase tracking-wide">
-                      Custom Groq API Key (BYOK)
+                      Custom API Key (BYOK)
                     </label>
                     <div className="relative">
                       <input
@@ -582,7 +582,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="space-y-3 font-mono text-xs">
                   <div className="p-3.5 rounded-xl bg-[#141414] border border-[#222222] flex justify-between items-center">
                     <span className="text-[#888888]">Version</span>
-                    <span className="text-white font-semibold">1.2.0 (Groq LPU Engine)</span>
+                    <span className="text-white font-semibold">1.2.0 (Security Intelligence Engine)</span>
                   </div>
                   <div className="p-3.5 rounded-xl bg-[#141414] border border-[#222222] flex justify-between items-center">
                     <span className="text-[#888888]">Agent Architecture</span>

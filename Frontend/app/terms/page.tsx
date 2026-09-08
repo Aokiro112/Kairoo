@@ -64,7 +64,7 @@ export default function TermsPage() {
       id: '06',
       title: 'Service Availability & SLA Guarantees',
       content: [
-        'We target 99.99% platform availability across our global edge networks and Groq LPU inference clusters.',
+        'We target 99.99% platform availability across our global edge networks and high-performance inference clusters.',
         'Scheduled maintenance windows are communicated in advance. Kairo shall not be liable for transient third-party infrastructure interruptions or network latency.'
       ]
     },
