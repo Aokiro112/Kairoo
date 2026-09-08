@@ -58,7 +58,7 @@ const TERMINAL_LOGS = [
 export default function RootLandingPage() {
   const router = useRouter();
   const [prompt, setPrompt] = useState('');
-  const [activeModal, setActiveModal] = useState<'signin' | 'pricing' | 'trust' | 'docs' | null>(null);
+  const [activeModal, setActiveModal] = useState<'signin' | 'trust' | 'docs' | null>(null);
   const [copiedTerminal, setCopiedTerminal] = useState(false);
   const [activeTab, setActiveTab] = useState<'vuln' | 'patch'>('vuln');
 
@@ -832,60 +832,6 @@ export default function RootLandingPage() {
 
       {/* Brutalist Footer */}
       <Footer />
-
-      {/* Pricing Modal */}
-      {activeModal === 'pricing' && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in-up">
-          <div className="bg-[#111111] border border-[#2A2A28] rounded-xl max-w-xl w-full p-6 text-[#F4F4F0] shadow-2xl relative">
-            <button
-              onClick={() => setActiveModal(null)}
-              className="absolute top-4 right-4 text-[#686865] hover:text-[#F4F4F0] p-1 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="font-mono text-xs text-[#686865] mb-1">PLANS & LICENSING</div>
-            <h2 className="text-xl font-bold mb-1">Kairo Security Plans</h2>
-            <p className="text-xs text-[#A3A3A0] mb-6">Autonomous vulnerability analysis tailored for security engineers.</p>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg bg-[#090909] border border-[#2A2A28] hover:border-[#383838] transition-colors">
-                <h3 className="font-bold text-sm">Community</h3>
-                <p className="text-2xl font-bold my-2 font-mono">$0</p>
-                <ul className="text-xs text-[#A3A3A0] space-y-2 mb-4 font-sans">
-                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-[#B8FF3D]" /> Passive DNS & TLS Recon</li>
-                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-[#B8FF3D]" /> Security Headers Audit</li>
-                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-[#B8FF3D]" /> Standard ReAct Engine</li>
-                </ul>
-                <button
-                  onClick={() => router.push('/chat')}
-                  className="w-full py-2 rounded bg-[#161616] border border-[#2A2A28] text-[#F4F4F0] text-xs font-semibold hover:bg-[#202020] active:scale-98 transition-all"
-                >
-                  Current Plan
-                </button>
-              </div>
-
-              <div className="p-4 rounded-lg bg-[#141414] border border-[#F4F4F0]/30 hover:border-[#F4F4F0]/60 transition-colors relative">
-                <span className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full bg-[#F4F4F0] text-[#090909] font-bold text-[10px]">
-                  PRO
-                </span>
-                <h3 className="font-bold text-sm">Security Pro</h3>
-                <p className="text-2xl font-bold my-2 font-mono">$20<span className="text-xs text-[#686865]">/mo</span></p>
-                <ul className="text-xs text-[#A3A3A0] space-y-2 mb-4 font-sans">
-                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-[#B8FF3D]" /> Groq LPU Ultra-Low Latency</li>
-                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-[#B8FF3D]" /> Full AST Code & Exploit Audits</li>
-                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-[#B8FF3D]" /> Automated Remediation PRs</li>
-                </ul>
-                <button
-                  onClick={() => router.push('/chat')}
-                  className="w-full py-2 rounded bg-[#F4F4F0] text-[#090909] text-xs font-bold hover:bg-white active:scale-98 transition-all"
-                >
-                  Get Started
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Trust & Security Modal */}
       {activeModal === 'trust' && (

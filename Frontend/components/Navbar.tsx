@@ -20,7 +20,6 @@ export function Navbar() {
     { label: 'Product', href: '/product' },
     { label: 'Features', href: '/features' },
     { label: 'Security', href: '/security' },
-    { label: 'Pricing', href: '/pricing' },
     { label: 'Docs', href: '/docs' },
   ];
 
