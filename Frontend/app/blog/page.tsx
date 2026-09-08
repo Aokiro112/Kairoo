@@ -41,10 +41,6 @@ export default function BlogListingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <div className="font-mono text-xs text-[#888885] uppercase tracking-wider mb-2 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#B8FF3D]" />
-              <span>Engineering & Product Blog</span>
-            </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#F4F4F0] mb-3 font-sans">
               Kairo Blog
             </h1>
@@ -65,10 +61,6 @@ export default function BlogListingPage() {
               className="border border-[#222220] bg-[#0E0E0E] rounded-2xl p-6 sm:p-8 hover:border-[#383835] transition-all group shadow-xl"
             >
               <div className="flex flex-wrap items-center gap-2.5 mb-4">
-                <span className="px-2.5 py-0.5 rounded-full bg-[#B8FF3D]/10 border border-[#B8FF3D]/30 text-[#B8FF3D] font-mono text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3" />
-                  <span>{post.badge}</span>
-                </span>
                 <span className="px-2.5 py-0.5 rounded-full bg-[#181818] border border-[#282828] text-[#D0D0CC] font-mono text-[11px] font-medium">
                   {post.status}
                 </span>

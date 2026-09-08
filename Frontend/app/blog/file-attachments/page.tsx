@@ -44,10 +44,6 @@ export default function FileAttachmentsBlogPost() {
           className="w-full mb-10 pb-8 border-b border-[#1D1D1B]"
         >
           <div className="flex flex-wrap items-center gap-2.5 mb-4">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#B8FF3D]/10 border border-[#B8FF3D]/30 text-[#B8FF3D] font-mono text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3" />
-              <span>Product Update</span>
-            </span>
             <span className="px-2.5 py-0.5 rounded-full bg-[#181818] border border-[#282828] text-[#D0D0CC] font-mono text-[11px] font-medium">
               Releasing Tomorrow
             </span>
