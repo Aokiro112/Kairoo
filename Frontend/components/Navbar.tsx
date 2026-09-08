@@ -21,6 +21,7 @@ export function Navbar() {
     { label: 'Features', href: '/features' },
     { label: 'Security', href: '/security' },
     { label: 'Docs', href: '/docs' },
+    { label: 'Blog', href: '/blog' },
   ];
 
   return (

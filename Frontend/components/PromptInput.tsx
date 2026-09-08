@@ -123,28 +123,27 @@ export const PromptInput: React.FC<PromptInputProps> = ({
               </button>
 
               {openDropdown === 'plus' && (
-                <div className="absolute bottom-9 left-0 w-48 bg-[#181818] border border-[#2C2C2C] rounded-xl shadow-2xl p-1 z-50 text-xs space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
-                  <button
+                <div className="absolute bottom-9 left-0 w-64 bg-[#141414] border border-[#2A2A2A] rounded-xl shadow-2xl p-3 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
+                  <div className="flex items-center justify-between mb-2 pb-2 border-b border-[#222222]">
+                    <div className="flex items-center gap-1.5">
+                      <Paperclip className="w-3.5 h-3.5 text-[#B8FF3D]" />
+                      <span className="font-bold text-[#F4F4F0]">Attach Files</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-[#B8FF3D]/10 border border-[#B8FF3D]/30 text-[#B8FF3D] font-mono text-[10px] font-bold">
+                      Releasing Soon
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#A0A0A0] leading-relaxed mb-3">
+                    Multi-file source code and artifact attachment is currently in final testing (releasing tomorrow).
+                  </p>
+                  <a
+                    href="/blog"
                     onClick={() => setOpenDropdown(null)}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[#C0C0C0] hover:bg-[#242424] hover:text-white transition-colors"
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-[#1E1E1E] hover:bg-[#282828] text-[#F4F4F0] font-mono text-[11px] font-semibold transition-colors border border-[#2C2C2C]"
                   >
-                    <Paperclip className="w-3.5 h-3.5 text-[#888888]" />
-                    <span>Attach Files</span>
-                  </button>
-                  <button
-                    onClick={() => setOpenDropdown(null)}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[#C0C0C0] hover:bg-[#242424] hover:text-white transition-colors"
-                  >
-                    <Globe className="w-3.5 h-3.5 text-[#888888]" />
-                    <span>Target URL Audit</span>
-                  </button>
-                  <button
-                    onClick={() => setOpenDropdown(null)}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[#C0C0C0] hover:bg-[#242424] hover:text-white transition-colors"
-                  >
-                    <FileCode className="w-3.5 h-3.5 text-[#888888]" />
-                    <span>SAST Code Scan</span>
-                  </button>
+                    <span>Read Blog Announcement</span>
+                    <span className="text-[#B8FF3D]">→</span>
+                  </a>
                 </div>
               )}
             </div>
