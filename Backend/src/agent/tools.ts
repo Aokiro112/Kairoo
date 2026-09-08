@@ -155,6 +155,70 @@ export const SECURITY_AGENT_TOOLS: AgentToolDefinition[] = [
   },
 ];
 
+// Target scope validator for SSRF & Self-Target Defense
+export function validateTargetScope(target: string): { allowed: boolean; reason?: string } {
+  if (!target || typeof target !== 'string') {
+    return { allowed: false, reason: 'Invalid or missing target parameter.' };
+  }
+
+  const clean = target
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    .split(':')[0];
+
+  if (!clean || clean.length < 3) {
+    return { allowed: false, reason: 'Target host is invalid or too short.' };
+  }
+
+  // Block self-targets, internal platform hostnames, and metadata endpoints
+  const blockedHosts = [
+    'kairo.bond',
+    'kairo.ai',
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+    '::1',
+    '169.254.169.254',
+    'metadata.google.internal',
+    'instance-data',
+  ];
+
+  if (blockedHosts.some((h) => clean === h || clean.endsWith(`.${h}`))) {
+    return {
+      allowed: false,
+      reason: `🛡️ Target '${clean}' is part of protected platform infrastructure or internal metadata. Scanning is restricted.`,
+    };
+  }
+
+  // Block private and loopback IPv4 ranges (SSRF prevention)
+  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  const ipMatch = clean.match(ipv4Regex);
+  if (ipMatch) {
+    const octets = ipMatch.slice(1).map(Number);
+    if (octets.some((o) => isNaN(o) || o < 0 || o > 255)) {
+      return { allowed: false, reason: `Invalid IP address format: ${clean}` };
+    }
+    const [o1, o2] = octets;
+    if (
+      o1 === 10 || // 10.0.0.0/8
+      o1 === 127 || // 127.0.0.0/8
+      o1 === 0 || // 0.0.0.0/8
+      (o1 === 172 && o2 >= 16 && o2 <= 31) || // 172.16.0.0/12
+      (o1 === 192 && o2 === 168) || // 192.168.0.0/16
+      (o1 === 169 && o2 === 254) // 169.254.0.0/16 Link-local / AWS / GCP Metadata
+    ) {
+      return {
+        allowed: false,
+        reason: `🛡️ Target IP '${clean}' resides in a restricted private/loopback subnet. Scanning internal networks is prohibited.`,
+      };
+    }
+  }
+
+  return { allowed: true };
+}
+
 // Actual Tool Implementations
 export async function executeSecurityTool(
   toolName: string,
@@ -165,6 +229,20 @@ export async function executeSecurityTool(
   switch (toolName) {
     case 'waf_detection_wafw00f': {
       let url = args.targetUrl;
+      const scope = validateTargetScope(url);
+      if (!scope.allowed) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'scan',
+            label: `WAF Detection (Restricted Scope: ${url})`,
+            status: 'failed',
+            resultDetails: { matchedResults: [scope.reason || 'Restricted target scope'] },
+          },
+          rawResult: { error: scope.reason },
+        };
+      }
+
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = `https://${url}`;
       }
@@ -244,6 +322,20 @@ export async function executeSecurityTool(
     }
 
     case 'subdomain_recon_subfinder': {
+      const scope = validateTargetScope(args.domain);
+      if (!scope.allowed) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'search',
+            label: `Subdomain Enumeration (Restricted Scope: ${args.domain})`,
+            status: 'failed',
+            resultDetails: { matchedResults: [scope.reason || 'Restricted target scope'] },
+          },
+          rawResult: { error: scope.reason },
+        };
+      }
+
       const domain = args.domain.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
       const startTime = Date.now();
 
@@ -323,18 +415,33 @@ export async function executeSecurityTool(
     }
 
     case 'port_service_scan_nmap': {
-      const host = args.host.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
+      const host = args.host;
+      const scope = validateTargetScope(host);
+      if (!scope.allowed) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'terminal',
+            label: `Port Scan (Restricted Scope: ${host})`,
+            status: 'failed',
+            resultDetails: { matchedResults: [scope.reason || 'Restricted target scope'] },
+          },
+          rawResult: { error: scope.reason },
+        };
+      }
+
+      const cleanHost = host.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
       const startTime = Date.now();
 
       // Try Docker CLI Nmap
-      const dockerRes = await runDockerSecurityTool('nmap', ['-F', '-sV', '--open', '-T4', host]);
+      const dockerRes = await runDockerSecurityTool('nmap', ['-F', '-sV', '--open', '-T4', cleanHost]);
       if (dockerRes.isDocker && dockerRes.stdout) {
         const lines = dockerRes.stdout.split('\n').filter((l) => l.includes('/tcp') && l.includes('open'));
         return {
           toolCall: {
             id: toolId,
             type: 'terminal',
-            label: `Network Port & Service Scan (nmap: ${host})`,
+            label: `Network Port & Service Scan (nmap: ${cleanHost})`,
             status: 'completed',
             resultDetails: {
               statusCode: 200,
@@ -346,7 +453,7 @@ export async function executeSecurityTool(
               rawOutput: dockerRes.stdout,
             },
           },
-          rawResult: { host, openPorts: lines, fullOutput: dockerRes.stdout },
+          rawResult: { host: cleanHost, openPorts: lines, fullOutput: dockerRes.stdout },
         };
       }
 
@@ -366,7 +473,7 @@ export async function executeSecurityTool(
             });
             socket.on('timeout', () => { socket.destroy(); resolve(); });
             socket.on('error', () => { socket.destroy(); resolve(); });
-            socket.connect(port, host);
+            socket.connect(port, cleanHost);
           });
         })
       );
@@ -390,22 +497,36 @@ export async function executeSecurityTool(
         toolCall: {
           id: toolId,
           type: 'terminal',
-          label: `Port & Service Probe (${host})`,
+          label: `Port & Service Probe (${cleanHost})`,
           status: 'completed',
           resultDetails: {
             statusCode: 200,
             responseTime: `${Date.now() - startTime}ms`,
             matchedResults:
               matchedResults.length > 0 ? matchedResults : ['Top standard network ports are filtered or closed'],
-            rawOutput: `Host: ${host}\nOpen Ports:\n${openPorts.join('\n')}`,
+            rawOutput: `Host: ${cleanHost}\nOpen Ports:\n${openPorts.join('\n')}`,
           },
         },
-        rawResult: { host, openPorts, matchedResults },
+        rawResult: { host: cleanHost, openPorts, matchedResults },
       };
     }
 
     case 'vuln_template_scan_nuclei': {
       let url = args.targetUrl;
+      const scope = validateTargetScope(url);
+      if (!scope.allowed) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'exploit',
+            label: `Vulnerability Template Scan (Restricted Scope: ${url})`,
+            status: 'failed',
+            resultDetails: { matchedResults: [scope.reason || 'Restricted target scope'] },
+          },
+          rawResult: { error: scope.reason },
+        };
+      }
+
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = `https://${url}`;
       }
@@ -477,6 +598,20 @@ export async function executeSecurityTool(
 
     case 'analyze_security_headers': {
       let url = args.targetUrl;
+      const scope = validateTargetScope(url);
+      if (!scope.allowed) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'scan',
+            label: `Header Audit (Restricted Scope: ${url})`,
+            status: 'failed',
+            resultDetails: { matchedResults: [scope.reason || 'Restricted target scope'] },
+          },
+          rawResult: { error: scope.reason },
+        };
+      }
+
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = `https://${url}`;
       }
@@ -553,16 +688,31 @@ export async function executeSecurityTool(
     }
 
     case 'passive_dns_recon': {
-      const domain = args.domain.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
+      const domain = args.domain;
+      const scope = validateTargetScope(domain);
+      if (!scope.allowed) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'search',
+            label: `DNS Recon (Restricted Scope: ${domain})`,
+            status: 'failed',
+            resultDetails: { matchedResults: [scope.reason || 'Restricted target scope'] },
+          },
+          rawResult: { error: scope.reason },
+        };
+      }
+
+      const cleanDomain = domain.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
       const startTime = Date.now();
       const results: Record<string, any> = {};
 
       try {
         const [aRecords, mxRecords, txtRecords, nsRecords] = await Promise.allSettled([
-          dns.resolve4(domain),
-          dns.resolveMx(domain),
-          dns.resolveTxt(domain),
-          dns.resolveNs(domain),
+          dns.resolve4(cleanDomain),
+          dns.resolveMx(cleanDomain),
+          dns.resolveTxt(cleanDomain),
+          dns.resolveNs(cleanDomain),
         ]);
 
         results.A = aRecords.status === 'fulfilled' ? aRecords.value : [];
@@ -573,7 +723,7 @@ export async function executeSecurityTool(
         const hasSPF = results.TXT.some((t: string) => t.startsWith('v=spf1'));
         let hasDMARC = false;
         try {
-          const dmarcTxt = await dns.resolveTxt(`_dmarc.${domain}`);
+          const dmarcTxt = await dns.resolveTxt(`_dmarc.${cleanDomain}`);
           hasDMARC = dmarcTxt.flat().some((t: string) => t.startsWith('v=DMARC1'));
         } catch {
           hasDMARC = false;
@@ -590,8 +740,8 @@ export async function executeSecurityTool(
           toolCall: {
             id: toolId,
             type: 'search',
-            label: `DNS & Mail Recon (${domain})`,
-            query: `DNS lookup A, MX, TXT, NS for ${domain}`,
+            label: `DNS & Mail Recon (${cleanDomain})`,
+            query: `DNS lookup A, MX, TXT, NS for ${cleanDomain}`,
             status: 'completed',
             resultDetails: {
               statusCode: 200,
@@ -600,14 +750,14 @@ export async function executeSecurityTool(
               rawOutput: JSON.stringify(results, null, 2),
             },
           },
-          rawResult: { domain, records: results, hasSPF, hasDMARC },
+          rawResult: { domain: cleanDomain, records: results, hasSPF, hasDMARC },
         };
       } catch (err: any) {
         return {
           toolCall: {
             id: toolId,
             type: 'search',
-            label: `DNS Recon (${domain})`,
+            label: `DNS Recon (${cleanDomain})`,
             status: 'failed',
             resultDetails: {
               matchedResults: [`DNS lookup failed: ${err.message}`],
@@ -619,15 +769,30 @@ export async function executeSecurityTool(
     }
 
     case 'ssl_tls_certificate_audit': {
-      const domain = args.domain.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
+      const domain = args.domain;
+      const scope = validateTargetScope(domain);
+      if (!scope.allowed) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'scan',
+            label: `TLS Inspection (Restricted Scope: ${domain})`,
+            status: 'failed',
+            resultDetails: { matchedResults: [scope.reason || 'Restricted target scope'] },
+          },
+          rawResult: { error: scope.reason },
+        };
+      }
+
+      const cleanDomain = domain.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
       const startTime = Date.now();
 
       return new Promise((resolve) => {
         const socket = tls.connect(
           {
-            host: domain,
+            host: cleanDomain,
             port: 443,
-            servername: domain,
+            servername: cleanDomain,
             timeout: 5000,
           },
           () => {
@@ -640,7 +805,7 @@ export async function executeSecurityTool(
                   toolCall: {
                     id: toolId,
                     type: 'scan',
-                    label: `TLS Certificate Inspection (${domain})`,
+                    label: `TLS Certificate Inspection (${cleanDomain})`,
                     status: 'failed',
                     resultDetails: { matchedResults: ['No peer certificate presented'] },
                   },

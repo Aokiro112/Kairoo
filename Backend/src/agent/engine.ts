@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import { SECURITY_AGENT_SYSTEM_PROMPT } from './systemPrompt';
-import { SECURITY_AGENT_TOOLS, executeSecurityTool, ToolCall } from './tools';
+import { SECURITY_AGENT_TOOLS, executeSecurityTool, validateTargetScope, ToolCall } from './tools';
 import { groqKeyManager } from './groqKeyManager';
 
 dotenv.config();
@@ -84,6 +84,67 @@ export async function* runSecurityAgentStream(
     lastUserMsg.match(/https?:\/\/([^\/\s]+)/) ||
     lastUserMsg.match(/([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
   const targetDomain = urlMatch ? urlMatch[1] : null;
+
+  // Intercept self-targets and restricted subnets before executing any probes
+  if (targetDomain) {
+    const scopeCheck = validateTargetScope(targetDomain);
+    if (!scopeCheck.allowed) {
+      yield {
+        type: 'reasoning',
+        data: {
+          id: `step-reasoning-${Date.now()}`,
+          type: 'reasoning',
+          text: `Target \`${targetDomain}\` is recognized as internal platform infrastructure. Applying Kairo Self-Defense and Scope Protection Policy.`,
+        },
+      };
+
+      const defenseNotice = `🛡️ **Kairo Self-Defense & Scope Protection Policy**
+
+Target \`${targetDomain}\` is recognized as platform infrastructure, internal network space, or loopback metadata.
+
+- **Status**: Diagnostic scanning restricted.
+- **Reason**: Automated penetration testing, vulnerability enumeration, and port reconnaissance against Kairo's internal infrastructure and private subnets are strictly restricted under platform safety guidelines.
+
+> If you are conducting authorized security testing on an external asset, please specify an external domain or authorized target (e.g., \`https://example.com\` or \`scanme.nmap.org\`).`;
+
+      yield { type: 'content_chunk', data: defenseNotice };
+      yield { type: 'done' };
+      return;
+    }
+  }
+
+  const selfTargetKeywords = ['kairo.bond', 'kairo.ai', 'localhost', '127.0.0.1', '169.254.169.254'];
+  const hasSelfTarget = selfTargetKeywords.some((kw) => lastUserMsg.toLowerCase().includes(kw));
+  if (
+    hasSelfTarget &&
+    (lastUserMsg.toLowerCase().includes('scan') ||
+      lastUserMsg.toLowerCase().includes('vuln') ||
+      lastUserMsg.toLowerCase().includes('exploit') ||
+      lastUserMsg.toLowerCase().includes('port') ||
+      lastUserMsg.toLowerCase().includes('audit') ||
+      lastUserMsg.toLowerCase().includes('hack') ||
+      lastUserMsg.toLowerCase().includes('probe'))
+  ) {
+    yield {
+      type: 'reasoning',
+      data: {
+        id: `step-reasoning-${Date.now()}`,
+        type: 'reasoning',
+        text: `Query targets Kairo platform infrastructure. Applying Kairo Self-Defense and Infrastructure Protection Policy.`,
+      },
+    };
+
+    const defenseNotice = `🛡️ **Kairo Self-Defense & Scope Protection Policy**
+
+Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.bond\`) and internal platform networks are strictly restricted.
+
+- **Status**: Probing restricted.
+- **Guideline**: Kairo AI performs authorized cybersecurity research and defensive engineering on external assets and authorized systems only.`;
+
+    yield { type: 'content_chunk', data: defenseNotice };
+    yield { type: 'done' };
+    return;
+  }
 
   // Fallback autonomous execution if no Groq API keys are loaded
   if (!groqKeyManager.hasKeys()) {
