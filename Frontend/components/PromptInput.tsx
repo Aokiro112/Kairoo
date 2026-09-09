@@ -256,7 +256,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
         onDrop={handleDrop}
         className={`w-full max-w-[760px] bg-[#121212] rounded-2xl border transition-all shadow-2xl relative ${
           isDragging
-            ? 'border-[#B8FF3D] bg-[#161A14] ring-1 ring-[#B8FF3D]/30'
+            ? 'border-[#444444] bg-[#161616] ring-1 ring-white/10'
             : 'border-[#242424] focus-within:border-[#3A3A3A]'
         }`}
       >
@@ -284,7 +284,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
                 key={file.id}
                 className="flex items-center gap-2 pl-2.5 pr-1.5 py-1 rounded-lg bg-[#1B1B1B] border border-[#2E2E2E] text-xs font-mono text-[#E4E4E0] shadow-sm animate-in fade-in zoom-in-95 duration-100"
               >
-                <FileCode className="w-3.5 h-3.5 text-[#B8FF3D] shrink-0" />
+                <FileCode className="w-3.5 h-3.5 text-[#A3A3A0] shrink-0" />
                 <span className="font-medium max-w-[140px] truncate" title={file.name}>
                   {file.name}
                 </span>
@@ -336,7 +336,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
                 onClick={() => setOpenDropdown(openDropdown === 'plus' ? null : 'plus')}
                 className={`w-7 h-7 rounded-full border flex items-center justify-center transition-colors ${
                   attachments.length > 0
-                    ? 'bg-[#B8FF3D]/10 border-[#B8FF3D]/40 text-[#B8FF3D]'
+                    ? 'bg-[#252525] border-[#3C3C3C] text-[#F4F4F0]'
                     : 'bg-[#1C1C1C] border-[#2A2A2A] text-[#888888] hover:text-white hover:bg-[#252525]'
                 }`}
                 title="Attach Files or Tools"
@@ -348,7 +348,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
                 <div className="absolute bottom-9 left-0 w-64 bg-[#141414] border border-[#2A2A2A] rounded-xl shadow-2xl p-2.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
                   <div className="flex items-center justify-between mb-2 px-1 pb-1.5 border-b border-[#222222]">
                     <div className="flex items-center gap-1.5">
-                      <Paperclip className="w-3.5 h-3.5 text-[#B8FF3D]" />
+                      <Paperclip className="w-3.5 h-3.5 text-[#A3A3A0]" />
                       <span className="font-bold text-[#F4F4F0]">Attachments & Scope</span>
                     </div>
                     <span className="px-1.5 py-0.5 rounded bg-[#1C1C1C] text-[#888888] font-mono text-[10px]">
@@ -368,7 +368,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
                     }}
                     className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg bg-[#1B1B1B] hover:bg-[#252525] text-left text-[#F4F4F0] font-mono text-xs transition-colors border border-[#282828] mb-1.5 group"
                   >
-                    <FileCode className="w-4 h-4 text-[#B8FF3D] group-hover:scale-110 transition-transform" />
+                    <FileCode className="w-4 h-4 text-[#A3A3A0] group-hover:text-white group-hover:scale-110 transition-all" />
                     <div>
                       <div className="font-semibold text-[11.5px]">Upload Source & Configs</div>
                       <div className="text-[10px] text-[#70706C]">.py, .ts, .go, .php, Dockerfile...</div>

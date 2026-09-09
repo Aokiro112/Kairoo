@@ -32,7 +32,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message, onFileClick }
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#222222] hover:bg-[#2A2A2A] border border-[#333333] text-xs font-mono text-[#F4F4F0] transition-colors group text-left cursor-pointer"
                 title="Click to view file content"
               >
-                <FileCode className="w-3.5 h-3.5 text-[#B8FF3D] shrink-0 group-hover:scale-105 transition-transform" />
+                <FileCode className="w-3.5 h-3.5 text-[#A3A3A0] group-hover:text-white shrink-0 group-hover:scale-105 transition-all" />
                 <span className="font-medium truncate max-w-[150px]">{file.name}</span>
                 <span className="text-[10px] text-[#80807C] font-mono">{formatFileSize(file.size)}</span>
                 <span className="px-1.5 py-0.2 rounded bg-[#161616] text-[9px] text-[#A0A0A0] uppercase">

@@ -44,8 +44,8 @@ export const FileViewerModal: React.FC<FileViewerModalProps> = ({ file, onClose 
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#222222] bg-[#161616]">
           <div className="flex items-center gap-3 min-w-0 pr-4">
-            <div className="w-8 h-8 rounded-lg bg-[#202020] border border-[#2F2F2F] flex items-center justify-center text-[#B8FF3D] shrink-0">
-              <FileCode className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-lg bg-[#202020] border border-[#2F2F2F] flex items-center justify-center text-[#F4F4F0] shrink-0">
+              <FileCode className="w-4 h-4 text-[#CCCCCC]" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -74,8 +74,8 @@ export const FileViewerModal: React.FC<FileViewerModalProps> = ({ file, onClose 
             >
               {copied ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-[#B8FF3D]" />
-                  <span className="text-[#B8FF3D]">Copied</span>
+                  <Check className="w-3.5 h-3.5 text-white" />
+                  <span className="text-white">Copied</span>
                 </>
               ) : (
                 <>
@@ -114,7 +114,7 @@ export const FileViewerModal: React.FC<FileViewerModalProps> = ({ file, onClose 
         {/* Modal Footer */}
         <div className="px-5 py-3 border-t border-[#222222] bg-[#141414] flex items-center justify-between text-xs text-[#70706C]">
           <div className="flex items-center gap-1.5 font-mono text-[11px]">
-            <Code2 className="w-3.5 h-3.5 text-[#B8FF3D]" />
+            <Code2 className="w-3.5 h-3.5 text-[#A0A0A0]" />
             <span>Artifact parsed for Kairo SAST Code Inspection Matrix</span>
           </div>
           <button
