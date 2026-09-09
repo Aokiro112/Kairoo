@@ -14,6 +14,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust reverse proxy (Railway, Render, Vercel, Cloudflare, AWS) for accurate client IP
+app.set('trust proxy', 1);
+
 // 1. HTTP Security Headers with Helmet
 app.use(
   helmet({
@@ -22,20 +25,40 @@ app.use(
   })
 );
 
+// Client IP resolver for rate limiting behind reverse proxies (Railway, Cloudflare, Nginx)
+const getClientIp = (req: express.Request): string => {
+  const cfIp = req.headers['cf-connecting-ip'];
+  if (typeof cfIp === 'string' && cfIp.trim()) return cfIp.trim();
+
+  const realIp = req.headers['x-real-ip'];
+  if (typeof realIp === 'string' && realIp.trim()) return realIp.trim();
+
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim()) {
+    return forwarded.split(',')[0].trim();
+  }
+
+  return req.ip || req.socket.remoteAddress || '127.0.0.1';
+};
+
 // 2. Global & Endpoint Rate Limiting (DoS & Brute Force Protection)
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 300, // Limit each IP to 300 requests per 15 minutes
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => getClientIp(req),
+  validate: { xForwardedForHeader: false, forwardedHeader: false, trustProxy: false },
   message: { error: 'Too many requests from this IP, please try again after 15 minutes.' },
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 30, // Limit each IP to 30 auth requests per 15 minutes
+  max: 30, // Limit each IP to 30 auth attempts per 15 minutes
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => getClientIp(req),
+  validate: { xForwardedForHeader: false, forwardedHeader: false, trustProxy: false },
   message: { error: 'Too many authentication attempts. Please try again after 15 minutes.' },
 });
 
@@ -44,6 +67,8 @@ const chatLimiter = rateLimit({
   max: 60, // Limit each IP to 60 chat streams per 10 minutes
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => getClientIp(req),
+  validate: { xForwardedForHeader: false, forwardedHeader: false, trustProxy: false },
   message: { error: 'Too many security scan requests. Please wait a moment before trying again.' },
 });
 
