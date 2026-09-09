@@ -12,8 +12,18 @@ export function Navbar() {
   const [user, setUser] = useState<UserSession | null>(null);
 
   useEffect(() => {
-    const session = getUserSession();
-    setUser(session);
+    const checkSession = () => {
+      const session = getUserSession();
+      setUser(session);
+    };
+
+    checkSession();
+    window.addEventListener('storage', checkSession);
+    window.addEventListener('focus', checkSession);
+    return () => {
+      window.removeEventListener('storage', checkSession);
+      window.removeEventListener('focus', checkSession);
+    };
   }, [pathname]);
 
   const navLinks = [

@@ -10,9 +10,11 @@ export function middleware(request: NextRequest) {
   if (cookieUser) {
     try {
       const decoded = decodeURIComponent(cookieUser);
-      const parsed = JSON.parse(decoded);
-      if (parsed && (parsed.email || parsed.name)) {
-        isAuthenticated = true;
+      if (decoded && decoded !== 'null' && decoded !== 'undefined' && decoded !== '""') {
+        const parsed = JSON.parse(decoded);
+        if (parsed && typeof parsed === 'object' && (parsed.email || parsed.name)) {
+          isAuthenticated = true;
+        }
       }
     } catch {}
   }

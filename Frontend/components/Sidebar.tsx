@@ -525,7 +525,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           setIsProfileMenuOpen(false);
                           if (confirm('Are you sure you want to log out?')) {
                             clearUserSession();
-                            router.push('/login?logout=true');
+                            window.location.href = '/login?logout=true';
                           }
                         }}
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-white transition-all text-left"

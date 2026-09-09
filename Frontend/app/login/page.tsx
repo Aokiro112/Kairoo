@@ -19,7 +19,7 @@ import {
 import { HackerAILogo } from '@/components/HackerAILogo';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { saveUserSession, getUserSession } from '@/lib/session';
+import { saveUserSession, getUserSession, clearUserSession } from '@/lib/session';
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '237701441779-6pptip1u09fapgj1eps9attr5emp00j6.apps.googleusercontent.com';
 
@@ -45,10 +45,14 @@ function AuthContent() {
 
   // Auto-redirect if already logged in and not explicitly logging out
   useEffect(() => {
-    if (typeof window !== 'undefined' && searchParams.get('logout') !== 'true') {
-      const activeSession = getUserSession();
-      if (activeSession && (activeSession.email || activeSession.name)) {
-        window.location.href = getRedirectTarget();
+    if (typeof window !== 'undefined') {
+      if (searchParams.get('logout') === 'true') {
+        clearUserSession();
+      } else {
+        const activeSession = getUserSession();
+        if (activeSession && (activeSession.email || activeSession.name)) {
+          window.location.href = getRedirectTarget();
+        }
       }
     }
   }, [searchParams]);
@@ -301,9 +305,14 @@ function AuthContent() {
         >
           {/* Card Top Branding */}
           <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[#161616] border border-[#2A2A28] mb-3">
-              <HackerAILogo className="w-5 h-5 text-[#F4F4F0]" />
-            </div>
+            <Link 
+              href="/"
+              prefetch={true}
+              className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[#161616] border border-[#2A2A28] mb-3 hover:border-[#3E3E3E] active:scale-95 transition-all cursor-pointer group"
+              title="Return to Kairo Home"
+            >
+              <HackerAILogo className="w-5 h-5 text-[#F4F4F0] group-hover:scale-105 transition-transform" />
+            </Link>
             <h1 className="text-2xl font-bold tracking-tight text-[#F4F4F0] font-sans">
               {mode === 'login' ? 'Sign in to Kairo' : 'Create an operator account'}
             </h1>
