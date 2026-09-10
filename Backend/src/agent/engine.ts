@@ -479,37 +479,17 @@ ${executedTools
           },
         };
 
-        // Immediately synthesize and stream the technical report
-        conversationHistory.push({
-          role: 'user',
-          content:
-            'All diagnostic and browser reconnaissance tools have executed successfully. Based on the findings gathered above, synthesize and present the complete technical security audit report now. Include: Executive Summary, Vulnerability Matrix Table (with Severity, Endpoint, Finding, Remediation), Proof of Concept/Configuration snippets, and Remediation Steps.',
-        });
-
-        const finalStream = await groqKeyManager.executeWithRotation(
-          'Final Synthesis Stream',
-          async (groqClient) => {
-            return await groqClient.chat.completions.create({
-              model: activeModel,
-              messages: conversationHistory,
-              temperature: 0.2,
-              max_tokens: 3072,
-              stream: true,
-            });
-          }
-        );
-
-        for await (const chunk of finalStream) {
-          const text = chunk.choices[0]?.delta?.content;
-          if (text) {
-            yield { type: 'content_chunk', data: text };
-          }
+        // If we reached max loops, guide model to synthesize final report
+        if (loopCount >= maxLoops) {
+          conversationHistory.push({
+            role: 'user',
+            content:
+              'All diagnostic and browser reconnaissance tools have executed. Based on the findings gathered above, present the complete technical security audit report now in markdown format.',
+          });
         }
-
-        finalReportGenerated = true;
-        break;
+        // Continue loop to let model either run next tool or stream the final synthesis report!
       } else {
-        // Final response was already streamed to the frontend
+        // Model generated final text response without new tool calls
         if (textContent) {
           finalReportGenerated = true;
         }
@@ -517,7 +497,7 @@ ${executedTools
       }
     }
 
-    // Safety fallback: if final synthesis text was not streamed yet, stream it with key rotation!
+    // Safety fallback: if final report was not generated yet, stream it with key rotation & tools enabled!
     if (!finalReportGenerated) {
       conversationHistory.push({
         role: 'user',
@@ -531,6 +511,8 @@ ${executedTools
           return await groqClient.chat.completions.create({
             model: activeModel,
             messages: conversationHistory,
+            tools: groqTools,
+            tool_choice: 'auto',
             temperature: 0.2,
             max_tokens: 3072,
             stream: true,
