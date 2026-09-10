@@ -27,7 +27,7 @@ export interface QuotaCheckResult {
 class CheaperInferenceManager {
   private apiKey: string = '';
   private baseUrl: string = 'https://api.cheaperinference.com/v1';
-  private defaultModel: string = 'v4-flash-0731';
+  private defaultModel: string = 'deepseek-v4-flash-0731';
   private maxUsesPerUser: number = 2;
   private userUsageMap: Map<string, number> = new Map();
   private client: Groq | null = null;
@@ -37,13 +37,23 @@ class CheaperInferenceManager {
   }
 
   public reloadConfig(): void {
-    this.apiKey = (process.env.CHEAPER_INFERENCE_API_KEY || '').trim();
+    let rawKey = (process.env.CHEAPER_INFERENCE_API_KEY || '').trim();
+    let rawUrl = (process.env.CHEAPER_INFERENCE_BASE_URL || 'https://api.cheaperinference.com/v1').trim();
+
+    // Auto-recovery if API key was placed into CHEAPER_INFERENCE_BASE_URL
+    if (!rawKey && (rawUrl.startsWith('ci_live_') || rawUrl.startsWith('ci_test_') || rawUrl.startsWith('ci_'))) {
+      rawKey = rawUrl;
+      rawUrl = 'https://api.cheaperinference.com/v1';
+    }
+
+    this.apiKey = rawKey;
+    this.baseUrl = (rawUrl.replace(/\/+$/, '') || 'https://api.cheaperinference.com/v1');
     
-    // Normalize Base URL
-    const rawUrl = (process.env.CHEAPER_INFERENCE_BASE_URL || 'https://api.cheaperinference.com/v1').trim();
-    this.baseUrl = rawUrl.replace(/\/+$/, '');
-    
-    this.defaultModel = (process.env.CHEAPER_INFERENCE_MODEL || 'v4-flash-0731').trim();
+    let rawModel = (process.env.CHEAPER_INFERENCE_MODEL || 'deepseek-v4-flash-0731').trim();
+    if (rawModel === 'v4-flash-0731' || rawModel === 'v4-flash') {
+      rawModel = 'deepseek-v4-flash-0731';
+    }
+    this.defaultModel = rawModel || 'deepseek-v4-flash-0731';
     
     const parsedMax = parseInt(process.env.CHEAPER_INFERENCE_MAX_USES_PER_USER || '2', 10);
     this.maxUsesPerUser = isNaN(parsedMax) || parsedMax <= 0 ? 2 : parsedMax;
@@ -61,8 +71,23 @@ class CheaperInferenceManager {
     }
   }
 
+  public resolveModelName(requestedModel?: string): string {
+    if (!requestedModel) return this.defaultModel;
+    const clean = requestedModel.trim().toLowerCase();
+    if (clean.includes('deepseek-v4-flash-0731') || clean === 'v4-flash-0731' || clean === 'v4-flash') {
+      return 'deepseek-v4-flash-0731';
+    }
+    if (clean.includes('deepseek-v4-pro')) {
+      return 'deepseek-v4-pro';
+    }
+    if (clean.includes('deepseek')) {
+      return 'deepseek-v4-flash-0731';
+    }
+    return this.defaultModel || 'deepseek-v4-flash-0731';
+  }
+
   public hasKey(): boolean {
-    return !!this.apiKey && !!this.client;
+    return !!this.apiKey;
   }
 
   public getModelName(): string {
@@ -111,20 +136,22 @@ class CheaperInferenceManager {
   }
 
   /**
-   * Executes streaming chat completion with CheaperInference API
+   * Executes streaming chat completion with CheaperInference API via direct SSE stream
    */
-  public async executeStream(params: {
+  public async *executeStream(params: {
     messages: any[];
     tools?: any[];
     model?: string;
     temperature?: number;
     max_tokens?: number;
-  }): Promise<any> {
-    if (!this.client || !this.apiKey) {
+  }): AsyncGenerator<any> {
+    if (!this.apiKey) {
       throw new Error('CheaperInference API key is not configured.');
     }
 
-    const modelToUse = params.model || this.defaultModel;
+    const modelToUse = this.resolveModelName(params.model);
+    const endpoint = `${this.baseUrl}/chat/completions`;
+
     const reqPayload: any = {
       model: modelToUse,
       messages: params.messages,
@@ -138,7 +165,50 @@ class CheaperInferenceManager {
       reqPayload.tool_choice = 'auto';
     }
 
-    return await this.client.chat.completions.create(reqPayload);
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(reqPayload),
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      throw new Error(`CheaperInference API error (${response.status}): ${errBody || response.statusText}`);
+    }
+
+    if (!response.body) {
+      throw new Error('CheaperInference response body is empty.');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+        const dataStr = trimmed.slice(6).trim();
+        if (dataStr === '[DONE]') break;
+
+        try {
+          const parsed = JSON.parse(dataStr);
+          yield parsed;
+        } catch {
+          // Ignore JSON parse errors on partial frames
+        }
+      }
+    }
   }
 }
 

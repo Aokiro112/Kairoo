@@ -409,10 +409,10 @@ ${executedTools
       let stream: any;
       if (isUsingCheaperInference) {
         try {
-          stream = await cheaperInferenceManager.executeStream({
+          stream = cheaperInferenceManager.executeStream({
             messages: conversationHistory,
             tools: groqTools,
-            model: 'v4-flash-0731',
+            model: 'deepseek-v4-flash-0731',
             temperature: 0.2,
             max_tokens: 3072,
           });
@@ -581,10 +581,10 @@ ${executedTools
       let finalStream: any;
       if (isUsingCheaperInference) {
         try {
-          finalStream = await cheaperInferenceManager.executeStream({
+          finalStream = cheaperInferenceManager.executeStream({
             messages: conversationHistory,
             tools: groqTools,
-            model: 'v4-flash-0731',
+            model: 'deepseek-v4-flash-0731',
             temperature: 0.2,
             max_tokens: 3072,
           });
