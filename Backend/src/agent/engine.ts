@@ -332,13 +332,13 @@ ${executedTools
       quotaNoticeText = `DeepSeek v4-flash-0731 selected. No CHEAPER_INFERENCE_API_KEY found in environment; automatically routing to Groq GPT-OSS cluster.`;
       isUsingCheaperInference = false;
     } else {
-      const quota = cheaperInferenceManager.checkQuota(userIdentifier);
+      const quota = await cheaperInferenceManager.checkQuotaAsync(userIdentifier);
       if (!quota.allowed) {
-        quotaNoticeText = `DeepSeek v4-flash-0731 quota reached (${quota.currentUsage}/${quota.maxUses} free uses used). Seamlessly routing to Groq GPT-OSS security cluster.`;
+        quotaNoticeText = `Account limit reached (${quota.currentUsage}/${quota.maxUses} free uses used for DeepSeek v4-flash-0731). Seamlessly routing to Groq GPT-OSS cluster.`;
         isUsingCheaperInference = false;
       } else {
-        const usedCount = cheaperInferenceManager.consumeQuota(userIdentifier);
-        quotaNoticeText = `Routing through DeepSeek v4-flash-0731 (platform.cheaperinference.com) [Session Quota: ${usedCount}/${cheaperInferenceManager.getMaxUses()} used].`;
+        const usedCount = await cheaperInferenceManager.consumeQuotaAsync(userIdentifier);
+        quotaNoticeText = `Routing through DeepSeek v4-flash-0731 (platform.cheaperinference.com) [Account Quota: ${usedCount}/${cheaperInferenceManager.getMaxUses()} used].`;
       }
     }
   }

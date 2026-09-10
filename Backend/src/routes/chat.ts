@@ -1,15 +1,22 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { prisma } from '../db';
 import { runSecurityAgentStream } from '../agent/engine';
 import { getClientIp } from '../utils/ip';
+import { optionalAuth, AuthenticatedRequest } from '../middleware/auth';
 
 export const chatRouter = Router();
 
 // POST /api/chat - SSE streaming
-chatRouter.post('/', async (req: Request, res: Response) => {
+chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { taskId, projectId, messages, model, userMessageText, attachments } = req.body;
-    const userIdentifier = getClientIp(req);
+    const { taskId, projectId, messages, model, userMessageText, attachments, userEmail, userId } = req.body;
+
+    // Resolve user identifier: account email (from token or payload) > account ID > client IP
+    const accountEmail = (req.user?.email || userEmail || req.body?.user?.email || '').trim().toLowerCase();
+    const accountId = (req.user?.id || userId || req.body?.user?.id || '').trim().toLowerCase();
+    const clientIp = getClientIp(req);
+
+    const userIdentifier = accountEmail || accountId || `ip:${clientIp}`;
 
     if ((!userMessageText || typeof userMessageText !== 'string') && (!attachments || !attachments.length)) {
       return res.status(400).json({ error: 'userMessageText or attachments required' });

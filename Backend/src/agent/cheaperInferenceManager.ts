@@ -16,6 +16,8 @@ envPaths.forEach((p) => {
   }
 });
 
+import { prisma } from '../db';
+
 export interface QuotaCheckResult {
   allowed: boolean;
   currentUsage: number;
@@ -64,7 +66,7 @@ class CheaperInferenceManager {
         baseURL: this.baseUrl,
       });
       const masked = `${this.apiKey.slice(0, 6)}...${this.apiKey.slice(-4)}`;
-      console.log(`🧠 [CheaperInferenceManager] Configured DeepSeek (${this.defaultModel}) via ${this.baseUrl} [Key: ${masked} | Max Uses: ${this.maxUsesPerUser}/user]`);
+      console.log(`🧠 [CheaperInferenceManager] Configured DeepSeek (${this.defaultModel}) via ${this.baseUrl} [Key: ${masked} | Max Uses: ${this.maxUsesPerUser}/account]`);
     } else {
       this.client = null;
       console.log(`ℹ️ [CheaperInferenceManager] No CHEAPER_INFERENCE_API_KEY configured. Fallback to Groq pool active.`);
@@ -99,11 +101,25 @@ class CheaperInferenceManager {
   }
 
   /**
-   * Checks if the user / IP is within their 2-use limit for DeepSeek v4-flash-0731
+   * Asynchronously checks if the account (email / userId / IP) is within the 2-use limit,
+   * querying the persistent database first.
    */
-  public checkQuota(userIdentifier: string): QuotaCheckResult {
+  public async checkQuotaAsync(userIdentifier: string): Promise<QuotaCheckResult> {
     const cleanId = (userIdentifier || 'anonymous').trim().toLowerCase();
-    const currentUsage = this.userUsageMap.get(cleanId) || 0;
+    let currentUsage = this.userUsageMap.get(cleanId) || 0;
+
+    try {
+      const record = await prisma.userUsage.findUnique({
+        where: { identifier: cleanId },
+      });
+      if (record) {
+        currentUsage = record.deepseekUses;
+        this.userUsageMap.set(cleanId, currentUsage);
+      }
+    } catch {
+      // Fallback to in-memory map
+    }
+
     const remaining = Math.max(0, this.maxUsesPerUser - currentUsage);
 
     if (currentUsage >= this.maxUsesPerUser) {
@@ -112,7 +128,7 @@ class CheaperInferenceManager {
         currentUsage,
         remainingUses: 0,
         maxUses: this.maxUsesPerUser,
-        reason: `Quota limit reached (${currentUsage}/${this.maxUsesPerUser} free uses used for DeepSeek v4-flash-0731).`,
+        reason: `Account limit reached (${currentUsage}/${this.maxUsesPerUser} free uses used for DeepSeek v4-flash-0731). Seamlessly routing to Groq GPT-OSS cluster.`,
       };
     }
 
@@ -125,7 +141,55 @@ class CheaperInferenceManager {
   }
 
   /**
-   * Consumes 1 use from the user's DeepSeek v4-flash-0731 quota
+   * Consumes 1 use from the account quota and persists to database
+   */
+  public async consumeQuotaAsync(userIdentifier: string): Promise<number> {
+    const cleanId = (userIdentifier || 'anonymous').trim().toLowerCase();
+    let newUsage = (this.userUsageMap.get(cleanId) || 0) + 1;
+
+    try {
+      const record = await prisma.userUsage.upsert({
+        where: { identifier: cleanId },
+        update: { deepseekUses: { increment: 1 } },
+        create: { identifier: cleanId, deepseekUses: 1 },
+      });
+      newUsage = record.deepseekUses;
+    } catch {
+      // In-memory fallback
+    }
+
+    this.userUsageMap.set(cleanId, newUsage);
+    return newUsage;
+  }
+
+  /**
+   * Synchronous quota check fallback
+   */
+  public checkQuota(userIdentifier: string): QuotaCheckResult {
+    const cleanId = (userIdentifier || 'anonymous').trim().toLowerCase();
+    const currentUsage = this.userUsageMap.get(cleanId) || 0;
+    const remaining = Math.max(0, this.maxUsesPerUser - currentUsage);
+
+    if (currentUsage >= this.maxUsesPerUser) {
+      return {
+        allowed: false,
+        currentUsage,
+        remainingUses: 0,
+        maxUses: this.maxUsesPerUser,
+        reason: `Account limit reached (${currentUsage}/${this.maxUsesPerUser} free uses used for DeepSeek v4-flash-0731).`,
+      };
+    }
+
+    return {
+      allowed: true,
+      currentUsage,
+      remainingUses: remaining,
+      maxUses: this.maxUsesPerUser,
+    };
+  }
+
+  /**
+   * Synchronous consume quota fallback
    */
   public consumeQuota(userIdentifier: string): number {
     const cleanId = (userIdentifier || 'anonymous').trim().toLowerCase();

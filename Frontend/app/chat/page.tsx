@@ -414,6 +414,7 @@ function ChatWorkspaceContent() {
         .map((m) => ({ role: m.role, content: m.content || '' }));
       outgoingMessages.push({ role: 'user', content: userText });
 
+      const activeUser = getUserSession();
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -421,6 +422,8 @@ function ChatWorkspaceContent() {
           taskId: currentTaskId,
           projectId: activeProjectId,
           userMessageText: userText,
+          userEmail: activeUser?.email || userEmail || undefined,
+          userId: activeUser?.id || undefined,
           attachments: attachments && attachments.length > 0 ? attachments : undefined,
           model: options.model || 'openai/gpt-oss-120b',
           messages: outgoingMessages,
