@@ -103,24 +103,6 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     description: 'CheaperInference DeepSeek reasoning model (2 uses / user limit)',
     provider: 'CheaperInference',
   },
-  {
-    id: 'openai/gpt-oss-120b',
-    name: 'GPT-OSS 120B',
-    shortName: 'GPT-OSS 120B',
-    badge: 'Deep Audit',
-    badgeColor: 'bg-purple-950/70 text-purple-400 border-purple-500/30',
-    description: 'Maximum depth vulnerability synthesis & exploit mapping',
-    provider: 'Groq Cluster',
-  },
-  {
-    id: 'llama-3.1-8b-instant',
-    name: 'Llama 3.1 8B Instant',
-    shortName: 'Llama 3.1 8B',
-    badge: 'Sub-100ms',
-    badgeColor: 'bg-amber-950/70 text-amber-400 border-amber-500/30',
-    description: 'Ultra low-latency network recon & fast triage',
-    provider: 'Groq',
-  },
 ];
 
 interface PromptInputProps {
@@ -551,13 +533,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    selectedModel === 'v4-flash-0731'
-                      ? 'bg-cyan-400'
-                      : selectedModel === 'openai/gpt-oss-120b'
-                      ? 'bg-purple-400'
-                      : selectedModel === 'llama-3.1-8b-instant'
-                      ? 'bg-amber-400'
-                      : 'bg-[#B8FF3D]'
+                    selectedModel === 'v4-flash-0731' ? 'bg-cyan-400' : 'bg-[#B8FF3D]'
                   } animate-pulse`}
                 />
                 <span className="font-medium group-hover:text-white transition-colors">
