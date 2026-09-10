@@ -21,15 +21,16 @@ const VALID_GROQ_MODELS = new Set([
 ]);
 
 const MODEL_ALIAS_MAP: Record<string, string> = {
-  // CheaperInference DeepSeek v4-flash-0731 mappings
-  'v4-flash-0731': 'v4-flash-0731',
-  'v4-flash': 'v4-flash-0731',
-  'deepseek/v4-flash-0731': 'v4-flash-0731',
-  'deepseek-v4-flash': 'v4-flash-0731',
-  'deepseek-v4': 'v4-flash-0731',
-  'deepseek': 'v4-flash-0731',
+  // DeepSeek failover fallback to Groq GPT-OSS 120B
+  'v4-flash-0731': 'openai/gpt-oss-120b',
+  'v4-flash': 'openai/gpt-oss-120b',
+  'deepseek/v4-flash-0731': 'openai/gpt-oss-120b',
+  'deepseek-v4-flash-0731': 'openai/gpt-oss-120b',
+  'deepseek-v4-flash': 'openai/gpt-oss-120b',
+  'deepseek-v4': 'openai/gpt-oss-120b',
+  'deepseek': 'openai/gpt-oss-120b',
 
-  // Groq GPT-OSS high performance mappings
+  // Groq high performance mappings
   'openai/gpt-oss-120b': 'openai/gpt-oss-120b',
   'openai/gpt-oss-20b': 'openai/gpt-oss-20b',
   'gpt-oss-120b': 'openai/gpt-oss-120b',
@@ -37,21 +38,11 @@ const MODEL_ALIAS_MAP: Record<string, string> = {
   'openai/gpt-4o': 'openai/gpt-oss-120b',
   'gpt-4o': 'openai/gpt-oss-120b',
   'gpt-4': 'openai/gpt-oss-120b',
-  'groq/llama-3.3-70b': 'openai/gpt-oss-120b',
-  'llama-3.3-70b': 'openai/gpt-oss-120b',
   'llama-3.3-70b-versatile': 'openai/gpt-oss-120b',
-  'llama-3.1-70b-versatile': 'openai/gpt-oss-120b',
-  'groq/llama-3.1-8b': 'openai/gpt-oss-20b',
-  'llama-3.1-8b': 'openai/gpt-oss-20b',
+  'llama-3.3-70b': 'openai/gpt-oss-120b',
+  'groq/llama-3.3-70b': 'openai/gpt-oss-120b',
   'llama-3.1-8b-instant': 'openai/gpt-oss-20b',
-  'deepseek-r1': 'openai/gpt-oss-120b',
-  'deepseek-r1-distill-llama-70b': 'openai/gpt-oss-120b',
-  'qwen/qwen-2.5-coder': 'openai/gpt-oss-120b',
-  'qwen/qwen3.8-27b': 'qwen/qwen3.8-27b',
-  'qwen/qwen3.6-27b': 'qwen/qwen3.6-27b',
-  'groq/compound': 'groq/compound',
-  'groq/compound-mini': 'groq/compound-mini',
-  'mixtral-8x7b-32768': 'openai/gpt-oss-120b',
+  'llama-3.1-8b': 'openai/gpt-oss-20b',
 };
 
 export const isCheaperInferenceModel = (requestedModel?: string): boolean => {
@@ -78,11 +69,6 @@ export const resolveModel = (requestedModel?: string): string => {
   // Already a valid official Groq model ID
   if (VALID_GROQ_MODELS.has(clean)) {
     return clean;
-  }
-
-  // Smart Heuristic Fallbacks
-  if (clean.includes('20b') || clean.includes('8b') || clean.includes('instant') || clean.includes('fast')) {
-    return 'openai/gpt-oss-20b';
   }
 
   return 'openai/gpt-oss-120b';
