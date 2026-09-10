@@ -96,6 +96,55 @@ function sanitizeToolResultForLLM(result: any): string {
   }
 }
 
+function createThinkFilter() {
+  let insideThink = false;
+  let buffer = '';
+
+  return (chunk: string): string => {
+    buffer += chunk;
+    let output = '';
+
+    while (buffer.length > 0) {
+      if (!insideThink) {
+        const startTagIndex = buffer.indexOf('<think>');
+        if (startTagIndex === -1) {
+          const partialMatch = buffer.match(/<t(?:h(?:i(?:n(?:k)?)?)?)?$/i);
+          if (partialMatch) {
+            const keepIndex = partialMatch.index!;
+            output += buffer.slice(0, keepIndex);
+            buffer = buffer.slice(keepIndex);
+            break;
+          } else {
+            output += buffer;
+            buffer = '';
+            break;
+          }
+        } else {
+          output += buffer.slice(0, startTagIndex);
+          insideThink = true;
+          buffer = buffer.slice(startTagIndex + 7);
+        }
+      } else {
+        const endTagIndex = buffer.indexOf('</think>');
+        if (endTagIndex === -1) {
+          const partialEndMatch = buffer.match(/<\/(?:t(?:h(?:i(?:n(?:k)?)?)?)?)?$/i);
+          if (partialEndMatch) {
+            buffer = buffer.slice(partialEndMatch.index!);
+          } else {
+            buffer = '';
+          }
+          break;
+        } else {
+          insideThink = false;
+          buffer = buffer.slice(endTagIndex + 8);
+        }
+      }
+    }
+
+    return output;
+  };
+}
+
 export async function* runSecurityAgentStream(
   messages: Array<{ role: string; content: string }>,
   model: string = 'openai/gpt-oss-120b',
@@ -325,22 +374,9 @@ ${executedTools
     return;
   }
 
-  // Check CheaperInference quota & availability for DeepSeek v4-flash-0731
-  let quotaNoticeText = '';
-  if (isUsingCheaperInference) {
-    if (!cheaperInferenceManager.hasKey()) {
-      quotaNoticeText = `DeepSeek v4-flash-0731 selected. No CHEAPER_INFERENCE_API_KEY found in environment; automatically routing to Groq GPT-OSS cluster.`;
-      isUsingCheaperInference = false;
-    } else {
-      const quota = await cheaperInferenceManager.checkQuotaAsync(userIdentifier);
-      if (!quota.allowed) {
-        quotaNoticeText = `Account limit reached (${quota.currentUsage}/${quota.maxUses} free uses used for DeepSeek v4-flash-0731). Seamlessly routing to Groq GPT-OSS cluster.`;
-        isUsingCheaperInference = false;
-      } else {
-        const usedCount = await cheaperInferenceManager.consumeQuotaAsync(userIdentifier);
-        quotaNoticeText = `Routing through DeepSeek v4-flash-0731 (platform.cheaperinference.com) [Account Quota: ${usedCount}/${cheaperInferenceManager.getMaxUses()} used].`;
-      }
-    }
+  // Check CheaperInference key availability for DeepSeek v4-flash-0731
+  if (isUsingCheaperInference && !cheaperInferenceManager.hasKey()) {
+    isUsingCheaperInference = false;
   }
 
   // Live Multi-Turn ReAct Agent Execution with Groq Multi-Key Rotation Pool
@@ -370,29 +406,12 @@ ${executedTools
       ...formattedHistory,
     ];
 
-    const reasoningStepId = `step-reasoning-${Date.now()}`;
-    let reasoningText = quotaNoticeText
-      ? quotaNoticeText
-      : hasAttachments
-      ? `Ingesting ${attachments.length} attached file(s) (${attachments.map((a) => a.name).join(', ')}). Formulating Static AST code analysis and vulnerability verification workflow.`
-      : targetDomain
-      ? `Target \`${targetDomain}\` detected. Formulating diagnostic reconnaissance workflow and attack surface mapping.`
-      : `Analyzing query, security requirements, and threat landscape.`;
-
-    yield {
-      type: 'reasoning',
-      data: {
-        id: reasoningStepId,
-        type: 'reasoning',
-        text: reasoningText,
-      },
-    };
-
+    // Live Multi-Turn ReAct Agent Execution with Groq Multi-Key Rotation Pool
     let loopCount = 0;
     const maxLoops = 2;
     let finalReportGenerated = false;
     let executedAnyTools = false;
-    let lastReasoningYield = Date.now();
+    const thinkFilter = createThinkFilter();
 
     while (loopCount < maxLoops) {
       loopCount++;
@@ -452,23 +471,7 @@ ${executedTools
           const delta = chunk.choices[0]?.delta;
           if (!delta) continue;
 
-          // Stream live reasoning from DeepSeek (delta.reasoning or delta.reasoning_content)
-          const reasoningDelta = delta.reasoning || (delta as any)?.reasoning_content || '';
-          if (reasoningDelta) {
-            reasoningText += (reasoningText.endsWith('\n') || reasoningText.endsWith(' ') ? '' : ' ') + reasoningDelta;
-            const now = Date.now();
-            if (now - lastReasoningYield > 80) {
-              lastReasoningYield = now;
-              yield {
-                type: 'reasoning',
-                data: {
-                  id: reasoningStepId,
-                  type: 'reasoning',
-                  text: reasoningText,
-                },
-              };
-            }
-          }
+          // Ignore delta.reasoning completely so internal thinking is never shown
 
           if (delta.tool_calls) {
             for (const tc of delta.tool_calls) {
@@ -488,9 +491,12 @@ ${executedTools
 
           if (delta.content) {
             textContent += delta.content;
-            // If no tools have been run yet and no tool calls in this chunk, stream conversational response live
+            // If no tools have been run yet and no tool calls in this chunk, stream clean conversational response live
             if (!executedAnyTools && Object.keys(toolCallsMap).length === 0) {
-              yield { type: 'content_chunk', data: delta.content };
+              const clean = thinkFilter(delta.content);
+              if (clean) {
+                yield { type: 'content_chunk', data: clean };
+              }
             }
           }
         }
@@ -533,7 +539,10 @@ ${executedTools
             if (delta.content) {
               textContent += delta.content;
               if (!executedAnyTools && Object.keys(toolCallsMap).length === 0) {
-                yield { type: 'content_chunk', data: delta.content };
+                const clean = thinkFilter(delta.content);
+                if (clean) {
+                  yield { type: 'content_chunk', data: clean };
+                }
               }
             }
           }
@@ -541,16 +550,6 @@ ${executedTools
           throw streamErr;
         }
       }
-
-      // Finalize reasoning text for this turn
-      yield {
-        type: 'reasoning',
-        data: {
-          id: reasoningStepId,
-          type: 'reasoning',
-          text: reasoningText,
-        },
-      };
 
       const toolCallsArray = Object.values(toolCallsMap);
 
@@ -677,31 +676,21 @@ ${executedTools
       }
 
       let finalStreamedAny = false;
+      const synthesisThinkFilter = createThinkFilter();
+
       try {
         for await (const chunk of finalStreamSource) {
           finalStreamedAny = true;
           const delta = chunk.choices[0]?.delta;
           if (!delta) continue;
 
-          const reasoningDelta = delta.reasoning || (delta as any)?.reasoning_content || '';
-          if (reasoningDelta) {
-            reasoningText += (reasoningText.endsWith('\n') || reasoningText.endsWith(' ') ? '' : ' ') + reasoningDelta;
-            const now = Date.now();
-            if (now - lastReasoningYield > 80) {
-              lastReasoningYield = now;
-              yield {
-                type: 'reasoning',
-                data: {
-                  id: reasoningStepId,
-                  type: 'reasoning',
-                  text: reasoningText,
-                },
-              };
-            }
-          }
+          // Ignore reasoningDelta - thinking is hidden
 
           if (delta.content) {
-            yield { type: 'content_chunk', data: delta.content };
+            const clean = synthesisThinkFilter(delta.content);
+            if (clean) {
+              yield { type: 'content_chunk', data: clean };
+            }
           }
         }
       } catch (finalErr: any) {
@@ -722,7 +711,10 @@ ${executedTools
           for await (const chunk of failoverSynthesis) {
             const text = chunk.choices[0]?.delta?.content;
             if (text) {
-              yield { type: 'content_chunk', data: text };
+              const clean = synthesisThinkFilter(text);
+              if (clean) {
+                yield { type: 'content_chunk', data: clean };
+              }
             }
           }
         } else {

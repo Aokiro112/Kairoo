@@ -18,6 +18,36 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
 
     const userIdentifier = accountEmail || accountId || `ip:${clientIp}`;
 
+    // Strict 2-chat hard limit per account / IP
+    const MAX_FREE_CHATS = 2;
+    let currentUsage = 0;
+    try {
+      const record = await prisma.userUsage.findUnique({
+        where: { identifier: userIdentifier },
+      });
+      if (record) {
+        currentUsage = record.deepseekUses;
+      }
+    } catch {}
+
+    if (currentUsage >= MAX_FREE_CHATS) {
+      return res.status(429).json({
+        error: `Aapki 2 free chat queries ki limit poori ho chuki hai (${currentUsage}/${MAX_FREE_CHATS} used). Aage use karne ke liye please account upgrade karein.`,
+        limitReached: true,
+        currentUsage,
+        maxUses: MAX_FREE_CHATS,
+      });
+    }
+
+    // Increment usage counter in persistent database
+    try {
+      await prisma.userUsage.upsert({
+        where: { identifier: userIdentifier },
+        update: { deepseekUses: { increment: 1 } },
+        create: { identifier: userIdentifier, deepseekUses: 1 },
+      });
+    } catch {}
+
     if ((!userMessageText || typeof userMessageText !== 'string') && (!attachments || !attachments.length)) {
       return res.status(400).json({ error: 'userMessageText or attachments required' });
     }

@@ -432,7 +432,12 @@ function ChatWorkspaceContent() {
       });
 
       if (!res.ok || !res.body) {
-        throw new Error('Failed to start chat stream');
+        let errMessage = 'Failed to start chat stream';
+        try {
+          const errJson = await res.json();
+          if (errJson?.error) errMessage = errJson.error;
+        } catch {}
+        throw new Error(errMessage);
       }
 
       const reader = res.body.getReader();
@@ -533,6 +538,18 @@ function ChatWorkspaceContent() {
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         console.error('Stream error', err);
+        setTasks((prev) =>
+          prev.map((t) => {
+            if (t.id !== currentTaskId) return t;
+            const msgs = [...t.messages];
+            const last = { ...msgs[msgs.length - 1] };
+            if (last.role === 'assistant') {
+              last.content = `⚠️ **Limit Reached / Error**: ${err.message || 'Something went wrong.'}`;
+              msgs[msgs.length - 1] = last;
+            }
+            return { ...t, messages: msgs };
+          })
+        );
       }
     } finally {
       setIsStreaming(false);

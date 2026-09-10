@@ -35,16 +35,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
       {message.steps && message.steps.length > 0 && (
         <div className="space-y-2.5">
           {message.steps.map((step) => {
-            if (step.type === 'reasoning') {
-              return (
-                <ReasoningBlock
-                  key={step.id}
-                  text={step.text}
-                />
-              );
-            }
-
-            if (step.type === 'tool_group' && step.tools) {
+            if (step.type === 'tool_group' && step.tools && step.tools.length > 0) {
               return (
                 <div key={step.id} className="flex flex-col gap-1.5 my-2 pl-0">
                   {step.tools.map((tool) => (
@@ -55,17 +46,6 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
                     />
                   ))}
                 </div>
-              );
-            }
-
-            if (step.type === 'collapsed_reasoning') {
-              return (
-                <ReasoningBlock
-                  key={step.id}
-                  text={step.text}
-                  isCollapsible={true}
-                  duration={step.duration}
-                />
               );
             }
 
