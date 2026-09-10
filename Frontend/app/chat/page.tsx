@@ -541,7 +541,7 @@ function ChatWorkspaceContent() {
     handleSendMessage(presetPrompt, {
       mode: 'Ask',
       target: 'Kairo Desktop',
-      model: 'openai/gpt-4o',
+      model: 'openai/gpt-oss-120b',
     });
   };
 

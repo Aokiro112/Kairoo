@@ -187,27 +187,47 @@ class CheaperInferenceManager {
     const decoder = new TextDecoder();
     let buffer = '';
 
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          if (buffer.trim()) {
+            const lines = buffer.split('\n');
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || !trimmed.startsWith('data: ')) continue;
+              const dataStr = trimmed.slice(6).trim();
+              if (dataStr === '[DONE]') return;
+              try {
+                yield JSON.parse(dataStr);
+              } catch {}
+            }
+          }
+          break;
+        }
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith('data: ')) continue;
-        const dataStr = trimmed.slice(6).trim();
-        if (dataStr === '[DONE]') break;
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+          const dataStr = trimmed.slice(6).trim();
+          if (dataStr === '[DONE]') return;
 
-        try {
-          const parsed = JSON.parse(dataStr);
-          yield parsed;
-        } catch {
-          // Ignore JSON parse errors on partial frames
+          try {
+            const parsed = JSON.parse(dataStr);
+            yield parsed;
+          } catch {
+            // Ignore JSON parse errors on partial frames
+          }
         }
       }
+    } finally {
+      try {
+        reader.releaseLock();
+      } catch {}
     }
   }
 }

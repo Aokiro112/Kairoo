@@ -386,8 +386,9 @@ ${executedTools
     };
 
     let loopCount = 0;
-    const maxLoops = 4;
+    const maxLoops = 2;
     let finalReportGenerated = false;
+    let executedAnyTools = false;
 
     while (loopCount < maxLoops) {
       loopCount++;
@@ -462,8 +463,8 @@ ${executedTools
 
         if (delta.content) {
           textContent += delta.content;
-          // If model is generating text and not forming tool calls, stream it live to the UI!
-          if (Object.keys(toolCallsMap).length === 0) {
+          // If no tools have been run yet and no tool calls in this chunk, stream conversational response live
+          if (!executedAnyTools && Object.keys(toolCallsMap).length === 0) {
             yield { type: 'content_chunk', data: delta.content };
           }
         }
@@ -472,6 +473,7 @@ ${executedTools
       const toolCallsArray = Object.values(toolCallsMap);
 
       if (toolCallsArray.length > 0) {
+        executedAnyTools = true;
         // Record assistant tool call intent in conversation history
         conversationHistory.push({
           role: 'assistant',
@@ -537,31 +539,21 @@ ${executedTools
             tools: stepTools,
           },
         };
-
-        // If we reached max loops, guide model to synthesize final report
-        if (loopCount >= maxLoops) {
-          conversationHistory.push({
-            role: 'user',
-            content:
-              'All diagnostic and browser reconnaissance tools have executed. Based on the findings gathered above, present the complete technical security audit report now in markdown format.',
-          });
-        }
-        // Continue loop to let model either run next tool or stream the final synthesis report!
       } else {
-        // Model generated final text response without new tool calls
-        if (textContent) {
+        // No new tool calls generated
+        if (!executedAnyTools) {
           finalReportGenerated = true;
         }
         break;
       }
     }
 
-    // Safety fallback: if final report was not generated yet, stream it with key rotation & tools enabled!
-    if (!finalReportGenerated) {
+    // Comprehensive Report Synthesis: if tools were executed, synthesize the complete structured report!
+    if (executedAnyTools || !finalReportGenerated) {
       conversationHistory.push({
         role: 'user',
         content:
-          'Based on all the diagnostic tool results gathered above, now synthesize and present the complete technical security audit report. Include: Executive Summary, Vulnerability Matrix Table (with Severity, Endpoint, Finding, Remediation), Proof of Concept/Configuration snippets, and Remediation Steps.',
+          'All diagnostic reconnaissance and security evaluation tools have completed execution. Based on all the findings gathered above, present the complete, exhaustive Technical Security Audit Report in markdown format.\n\nStructure:\n# 🛡️ Executive Security Summary (Target, Scope, Overall Risk Level)\n## 🎯 Attack Surface & Discovery Overview\n## 🚨 Vulnerability Matrix Table (| ID | Severity | Endpoint / Component | Finding & Impact | Remediation Summary |)\n## 🔬 In-Depth Technical Findings & Evidence\n## 🛠️ Prioritized Remediation Roadmap (Immediate P0, Medium-term P1, Long-term P2)',
       });
 
       let finalStream: any;
@@ -569,10 +561,9 @@ ${executedTools
         try {
           finalStream = cheaperInferenceManager.executeStream({
             messages: conversationHistory,
-            tools: groqTools,
             model: 'deepseek-v4-flash-0731',
             temperature: 0.2,
-            max_tokens: 3072,
+            max_tokens: 4096,
           });
         } catch {
           finalStream = await groqKeyManager.executeWithRotation(
@@ -581,10 +572,8 @@ ${executedTools
               return await groqClient.chat.completions.create({
                 model: 'openai/gpt-oss-120b',
                 messages: conversationHistory,
-                tools: groqTools,
-                tool_choice: 'auto',
                 temperature: 0.2,
-                max_tokens: 3072,
+                max_tokens: 4096,
                 stream: true,
               });
             }
@@ -597,10 +586,8 @@ ${executedTools
             return await groqClient.chat.completions.create({
               model: activeModel,
               messages: conversationHistory,
-              tools: groqTools,
-              tool_choice: 'auto',
               temperature: 0.2,
-              max_tokens: 3072,
+              max_tokens: 4096,
               stream: true,
             });
           }
