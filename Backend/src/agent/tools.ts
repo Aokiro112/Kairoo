@@ -71,10 +71,6 @@ export const SECURITY_AGENT_TOOLS: AgentToolDefinition[] = [
           type: 'string',
           description: 'Target hostname or IP (e.g. scanme.nmap.org or example.com)',
         },
-        topPorts: {
-          type: 'string',
-          description: 'Port scope: "top20", "top100", or "web" (default "top20")',
-        },
       },
       required: ['host'],
     },
@@ -88,10 +84,6 @@ export const SECURITY_AGENT_TOOLS: AgentToolDefinition[] = [
         targetUrl: {
           type: 'string',
           description: 'Target URL to scan (e.g. https://example.com)',
-        },
-        tags: {
-          type: 'string',
-          description: 'Template tags to scan for (e.g. "cve,misconfiguration,exposure,panel")',
         },
       },
       required: ['targetUrl'],
@@ -167,10 +159,6 @@ export const SECURITY_AGENT_TOOLS: AgentToolDefinition[] = [
           type: 'string',
           description: 'The web application URL to navigate to and inspect (e.g. https://example.com/login)',
         },
-        captureScreenshot: {
-          type: 'boolean',
-          description: 'Whether to take a rendered snapshot screenshot of the page (default true)',
-        },
       },
       required: ['targetUrl'],
     },
@@ -198,26 +186,18 @@ export const SECURITY_AGENT_TOOLS: AgentToolDefinition[] = [
           description: 'Value or payload to type into the selected input field',
         },
       },
-      required: ['targetUrl', 'action', 'selector'],
+      required: ['targetUrl', 'action', 'selector', 'inputValue'],
     },
   },
   {
     name: 'browser_capture_screenshot',
-    description: 'Captures a clean rendered screenshot (base64 image) of a target webpage or specific DOM element for visual verification.',
+    description: 'Captures a clean rendered screenshot (base64 image) of a target webpage for visual verification and security audit reports.',
     parameters: {
       type: 'object',
       properties: {
         targetUrl: {
           type: 'string',
           description: 'URL of the web page to photograph (e.g. https://example.com)',
-        },
-        selector: {
-          type: 'string',
-          description: 'Optional CSS selector to screenshot a specific component or modal (e.g. "#login-modal")',
-        },
-        fullPage: {
-          type: 'boolean',
-          description: 'Whether to screenshot the entire scrollable page height (default false)',
         },
       },
       required: ['targetUrl'],
