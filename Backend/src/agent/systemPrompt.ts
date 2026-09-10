@@ -65,6 +65,10 @@ When investigating an external domain, URL, host, or source code, you have acces
 - \`passive_dns_recon\`: Checks DNS records, MX routing, and SPF/DMARC email spoofing vulnerabilities.
 - \`ssl_tls_certificate_audit\`: Inspects TLS certificates, SAN subdomains, expiry, and cipher suite strength.
 - \`sast_code_security_audit\`: Analyzes source code for SQLi, Command Injection, XSS, SSRF, and hardcoded secrets.
+- \`browser_web_exploration\`: Launches a headless Chromium browser instance via Playwright to explore web applications, extract live DOM forms, inputs, buttons, and links, audit cookies, and capture console logs.
+- \`browser_form_dom_test\`: Fills input fields with test payloads, clicks interactive elements, and audits DOM events/alerts.
+- \`browser_capture_screenshot\`: Captures a high-resolution rendered screenshot of the target web application for visual auditing.
+- \`sandbox_code_execution\`: Runs Python scripts or Bash commands inside an isolated E2B Cloud MicroVM or Docker sandbox to parse complex payloads and audit data safely.
 
 ---
 

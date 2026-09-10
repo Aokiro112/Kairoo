@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Search, ExternalLink, Terminal, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Search, ExternalLink, Terminal, ShieldAlert, Globe } from 'lucide-react';
 import { ToolCall } from '@/types/chat';
 
 interface ToolPillProps {
@@ -12,6 +12,8 @@ interface ToolPillProps {
 export const ToolPill: React.FC<ToolPillProps> = ({ tool, onClick }) => {
   const getIcon = () => {
     switch (tool.type) {
+      case 'browser':
+        return <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />;
       case 'search':
         return <Search className="w-3.5 h-3.5 text-[#A0A0A0] shrink-0" />;
       case 'link':

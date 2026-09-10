@@ -1,4 +1,4 @@
-export type ToolType = 'search' | 'link' | 'terminal' | 'scan' | 'exploit';
+export type ToolType = 'search' | 'link' | 'terminal' | 'scan' | 'exploit' | 'browser';
 
 export interface ToolCall {
   id: string;
@@ -12,6 +12,8 @@ export interface ToolCall {
     matchedResults?: string[];
     responseTime?: string;
     rawOutput?: string;
+    screenshotDataUrl?: string;
+    engine?: string;
   };
 }
 

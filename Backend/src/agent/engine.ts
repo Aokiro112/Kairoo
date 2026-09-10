@@ -17,8 +17,6 @@ const VALID_GROQ_MODELS = new Set([
   'qwen/qwen3.6-27b',
   'groq/compound',
   'groq/compound-mini',
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
 ]);
 
 const MODEL_ALIAS_MAP: Record<string, string> = {
@@ -30,8 +28,6 @@ const MODEL_ALIAS_MAP: Record<string, string> = {
   'openai/gpt-4o': 'openai/gpt-oss-120b',
   'gpt-4o': 'openai/gpt-oss-120b',
   'gpt-4': 'openai/gpt-oss-120b',
-
-  // Groq Llama aliases -> Map to ultra-fast GPT-OSS 120B / 20B
   'groq/llama-3.3-70b': 'openai/gpt-oss-120b',
   'llama-3.3-70b': 'openai/gpt-oss-120b',
   'llama-3.3-70b-versatile': 'openai/gpt-oss-120b',
@@ -39,13 +35,11 @@ const MODEL_ALIAS_MAP: Record<string, string> = {
   'groq/llama-3.1-8b': 'openai/gpt-oss-20b',
   'llama-3.1-8b': 'openai/gpt-oss-20b',
   'llama-3.1-8b-instant': 'openai/gpt-oss-20b',
-
-  // DeepSeek & Qwen aliases
   'deepseek-r1': 'openai/gpt-oss-120b',
   'deepseek-r1-distill-llama-70b': 'openai/gpt-oss-120b',
   'qwen/qwen-2.5-coder': 'openai/gpt-oss-120b',
-  'qwen/qwen3.8-27b': 'openai/gpt-oss-120b',
-  'qwen/qwen3.6-27b': 'openai/gpt-oss-20b',
+  'qwen/qwen3.8-27b': 'qwen/qwen3.8-27b',
+  'qwen/qwen3.6-27b': 'qwen/qwen3.6-27b',
   'groq/compound': 'groq/compound',
   'groq/compound-mini': 'groq/compound-mini',
   'mixtral-8x7b-32768': 'openai/gpt-oss-120b',
@@ -72,6 +66,28 @@ export const resolveModel = (requestedModel?: string): string => {
 
   return 'openai/gpt-oss-120b';
 };
+
+function sanitizeToolResultForLLM(result: any): string {
+  if (!result) return '{}';
+  try {
+    const clean = typeof result === 'object' ? JSON.parse(JSON.stringify(result)) : result;
+    if (typeof clean === 'object' && clean !== null) {
+      if ('screenshotBase64' in clean) {
+        clean.screenshotBase64 = '[Base64 PNG Screenshot Captured and rendered in User UI]';
+      }
+      if ('screenshotDataUrl' in clean) {
+        clean.screenshotDataUrl = '[Base64 PNG Screenshot Captured and rendered in User UI]';
+      }
+    }
+    const str = typeof clean === 'string' ? clean : JSON.stringify(clean);
+    if (str.length > 4000) {
+      return str.slice(0, 4000) + '... [truncated for context efficiency]';
+    }
+    return str;
+  } catch {
+    return String(result).slice(0, 4000);
+  }
+}
 
 export async function* runSecurityAgentStream(
   messages: Array<{ role: string; content: string }>,
@@ -341,14 +357,13 @@ ${executedTools
     };
 
     let loopCount = 0;
-    const maxLoops = 5;
+    const maxLoops = 4;
     let finalReportGenerated = false;
 
     while (loopCount < maxLoops) {
       loopCount++;
 
-      // Execute Chat Completion with automatic multi-key failover if rate limited
-      const response = await groqKeyManager.executeWithRotation(
+      const stream = await groqKeyManager.executeWithRotation(
         `ReAct Step #${loopCount}`,
         async (groqClient) => {
           return await groqClient.chat.completions.create({
@@ -358,57 +373,103 @@ ${executedTools
             tool_choice: 'auto',
             temperature: 0.2,
             max_tokens: 3072,
+            stream: true,
           });
         }
       );
 
-      const choice = response.choices[0];
-      const toolCalls = choice?.message?.tool_calls;
-      const content = choice?.message?.content || '';
+      const toolCallsMap: Record<number, { id: string; name: string; arguments: string }> = {};
+      let textContent = '';
 
-      if (toolCalls && toolCalls.length > 0) {
-        // Maintain continuous context in history
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta;
+        if (!delta) continue;
+
+        if (delta.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index ?? 0;
+            if (!toolCallsMap[idx]) {
+              toolCallsMap[idx] = {
+                id: tc.id || `call_${Date.now()}_${idx}`,
+                name: tc.function?.name || '',
+                arguments: '',
+              };
+            }
+            if (tc.id) toolCallsMap[idx].id = tc.id;
+            if (tc.function?.name) toolCallsMap[idx].name = tc.function.name;
+            if (tc.function?.arguments) toolCallsMap[idx].arguments += tc.function.arguments;
+          }
+        }
+
+        if (delta.content) {
+          textContent += delta.content;
+          // If model is generating text and not forming tool calls, stream it live to the UI!
+          if (Object.keys(toolCallsMap).length === 0) {
+            yield { type: 'content_chunk', data: delta.content };
+          }
+        }
+      }
+
+      const toolCallsArray = Object.values(toolCallsMap);
+
+      if (toolCallsArray.length > 0) {
+        // Record assistant tool call intent in conversation history
         conversationHistory.push({
           role: 'assistant',
-          content: content,
-          tool_calls: toolCalls,
+          content: textContent || null,
+          tool_calls: toolCallsArray.map((tc) => ({
+            id: tc.id,
+            type: 'function',
+            function: {
+              name: tc.name,
+              arguments: tc.arguments,
+            },
+          })),
         });
 
-        const stepTools: ToolCall[] = [];
-
-        for (const tc of toolCalls) {
-          const fnName = tc.function.name;
+        // Execute all requested security tools in parallel
+        const toolExecutionPromises = toolCallsArray.map(async (tc) => {
+          const fnName = tc.name;
           let fnArgs = {};
           try {
-            fnArgs = JSON.parse(tc.function.arguments || '{}');
+            fnArgs = JSON.parse(tc.arguments || '{}');
           } catch {}
 
           try {
             const { toolCall, rawResult } = await executeSecurityTool(fnName, fnArgs);
-            stepTools.push(toolCall);
-
-            conversationHistory.push({
-              role: 'tool',
-              tool_call_id: tc.id,
-              content: JSON.stringify(rawResult),
-            });
+            return {
+              toolCall,
+              historyItem: {
+                role: 'tool',
+                tool_call_id: tc.id,
+                content: sanitizeToolResultForLLM(rawResult),
+              },
+            };
           } catch (err: any) {
-            stepTools.push({
-              id: tc.id,
-              type: 'scan',
-              label: `Tool Error (${fnName})`,
-              status: 'failed',
-              resultDetails: { matchedResults: [err.message] },
-            });
-
-            conversationHistory.push({
-              role: 'tool',
-              tool_call_id: tc.id,
-              content: JSON.stringify({ error: err.message }),
-            });
+            return {
+              toolCall: {
+                id: tc.id,
+                type: 'scan' as const,
+                label: `Tool Error (${fnName})`,
+                status: 'failed' as const,
+                resultDetails: { matchedResults: [err.message] },
+              },
+              historyItem: {
+                role: 'tool',
+                tool_call_id: tc.id,
+                content: JSON.stringify({ error: err.message }),
+              },
+            };
           }
+        });
+
+        const results = await Promise.all(toolExecutionPromises);
+        const stepTools: ToolCall[] = results.map((r) => r.toolCall);
+        for (const r of results) {
+          conversationHistory.push(r.historyItem);
         }
 
+        // Emit tool pills with screenshot previews to the frontend immediately
         yield {
           type: 'tool_group',
           data: {
@@ -417,17 +478,46 @@ ${executedTools
             tools: stepTools,
           },
         };
+
+        // Immediately synthesize and stream the technical report
+        conversationHistory.push({
+          role: 'user',
+          content:
+            'All diagnostic and browser reconnaissance tools have executed successfully. Based on the findings gathered above, synthesize and present the complete technical security audit report now. Include: Executive Summary, Vulnerability Matrix Table (with Severity, Endpoint, Finding, Remediation), Proof of Concept/Configuration snippets, and Remediation Steps.',
+        });
+
+        const finalStream = await groqKeyManager.executeWithRotation(
+          'Final Synthesis Stream',
+          async (groqClient) => {
+            return await groqClient.chat.completions.create({
+              model: activeModel,
+              messages: conversationHistory,
+              temperature: 0.2,
+              max_tokens: 3072,
+              stream: true,
+            });
+          }
+        );
+
+        for await (const chunk of finalStream) {
+          const text = chunk.choices[0]?.delta?.content;
+          if (text) {
+            yield { type: 'content_chunk', data: text };
+          }
+        }
+
+        finalReportGenerated = true;
+        break;
       } else {
-        // Model generated final text directly
-        if (content) {
-          yield { type: 'content_chunk', data: content };
+        // Final response was already streamed to the frontend
+        if (textContent) {
           finalReportGenerated = true;
         }
         break;
       }
     }
 
-    // If tools executed but final synthesis text was not streamed yet, stream it with key rotation!
+    // Safety fallback: if final synthesis text was not streamed yet, stream it with key rotation!
     if (!finalReportGenerated) {
       conversationHistory.push({
         role: 'user',
@@ -436,7 +526,7 @@ ${executedTools
       });
 
       const finalStream = await groqKeyManager.executeWithRotation(
-        'Final Synthesis Stream',
+        'Final Synthesis Stream Fallback',
         async (groqClient) => {
           return await groqClient.chat.completions.create({
             model: activeModel,

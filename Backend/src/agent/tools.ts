@@ -2,10 +2,12 @@ import dns from 'dns/promises';
 import tls from 'tls';
 import net from 'net';
 import { runDockerSecurityTool } from './dockerRunner';
+import { navigateAndInspectWebPage, capturePageScreenshot, interactAndTestDOM } from './browserEngine';
+import { runInSandbox } from './e2bSandbox';
 
 export interface ToolCall {
   id: string;
-  type: 'search' | 'link' | 'terminal' | 'scan' | 'exploit';
+  type: 'search' | 'link' | 'terminal' | 'scan' | 'exploit' | 'browser';
   label: string;
   query?: string;
   url?: string;
@@ -15,6 +17,8 @@ export interface ToolCall {
     matchedResults?: string[];
     responseTime?: string;
     rawOutput?: string;
+    screenshotDataUrl?: string;
+    engine?: string;
   };
 }
 
@@ -151,6 +155,90 @@ export const SECURITY_AGENT_TOOLS: AgentToolDefinition[] = [
         },
       },
       required: ['language', 'codeSnippet'],
+    },
+  },
+  {
+    name: 'browser_web_exploration',
+    description: 'Launches a headless Chromium browser instance via Playwright to navigate to a target web application, inspect the live DOM tree, extract interactive forms/inputs/buttons/links, identify CSRF token omissions, and check console errors.',
+    parameters: {
+      type: 'object',
+      properties: {
+        targetUrl: {
+          type: 'string',
+          description: 'The web application URL to navigate to and inspect (e.g. https://example.com/login)',
+        },
+        captureScreenshot: {
+          type: 'boolean',
+          description: 'Whether to take a rendered snapshot screenshot of the page (default true)',
+        },
+      },
+      required: ['targetUrl'],
+    },
+  },
+  {
+    name: 'browser_form_dom_test',
+    description: 'Interacts with web page DOM elements using Playwright: fills form fields with test payloads (e.g. XSS test vectors, authentication tests), clicks buttons, and monitors triggered JavaScript dialogs, console errors, or redirects.',
+    parameters: {
+      type: 'object',
+      properties: {
+        targetUrl: {
+          type: 'string',
+          description: 'The web page URL (e.g. https://example.com/contact)',
+        },
+        action: {
+          type: 'string',
+          description: 'The interaction action: "click", "fill_and_submit", or "test_payload"',
+        },
+        selector: {
+          type: 'string',
+          description: 'CSS selector of the target element (e.g., "#login-btn", "input[name=username]", "form button[type=submit]")',
+        },
+        inputValue: {
+          type: 'string',
+          description: 'Value or payload to type into the selected input field',
+        },
+      },
+      required: ['targetUrl', 'action', 'selector'],
+    },
+  },
+  {
+    name: 'browser_capture_screenshot',
+    description: 'Captures a clean rendered screenshot (base64 image) of a target webpage or specific DOM element for visual verification.',
+    parameters: {
+      type: 'object',
+      properties: {
+        targetUrl: {
+          type: 'string',
+          description: 'URL of the web page to photograph (e.g. https://example.com)',
+        },
+        selector: {
+          type: 'string',
+          description: 'Optional CSS selector to screenshot a specific component or modal (e.g. "#login-modal")',
+        },
+        fullPage: {
+          type: 'boolean',
+          description: 'Whether to screenshot the entire scrollable page height (default false)',
+        },
+      },
+      required: ['targetUrl'],
+    },
+  },
+  {
+    name: 'sandbox_code_execution',
+    description: 'Executes Python or Bash security auditing scripts and data parsers inside an isolated E2B Cloud MicroVM (or local Docker container fallback). Allows executing custom logic and scripts safely.',
+    parameters: {
+      type: 'object',
+      properties: {
+        language: {
+          type: 'string',
+          description: 'Language or shell: "python" or "bash"',
+        },
+        codeOrCommand: {
+          type: 'string',
+          description: 'The Python script or Bash command string to execute in the isolated sandbox environment',
+        },
+      },
+      required: ['language', 'codeOrCommand'],
     },
   },
 ];
@@ -991,6 +1079,262 @@ export async function executeSecurityTool(
         },
         rawResult: { language, detectedIssues, lines: codeSnippet.split('\n').length },
       };
+    }
+
+    case 'browser_web_exploration': {
+      const { targetUrl, captureScreenshot = true } = args;
+      const scope = validateTargetScope(targetUrl);
+      if (!scope.allowed) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'browser',
+            label: `Browser Exploration (Restricted: ${targetUrl})`,
+            status: 'failed',
+            resultDetails: { matchedResults: [scope.reason || 'Restricted target scope'] },
+          },
+          rawResult: { error: scope.reason },
+        };
+      }
+
+      const startTime = Date.now();
+      try {
+        const inspection = await navigateAndInspectWebPage(targetUrl, {
+          captureScreenshot: !!captureScreenshot,
+          timeout: 15000,
+        });
+
+        const signals: string[] = [
+          `Page Title: "${inspection.pageTitle}" (HTTP ${inspection.httpStatus})`,
+          `Forms Discovered: ${inspection.forms.length} | Interactive Buttons: ${inspection.buttons.length} | Links: ${inspection.links.length}`,
+          `Cookies Audit: ${inspection.cookies.length} tracked cookies`,
+        ];
+
+        if (inspection.securityFindings.length > 0) {
+          signals.push(...inspection.securityFindings.map((f) => `⚠️ ${f}`));
+        } else {
+          signals.push('No obvious high-risk client-side misconfigurations detected in initial DOM.');
+        }
+
+        const formattedForms = inspection.forms
+          .map(
+            (f, i) =>
+              `[Form ${i + 1}] ${f.method} -> ${f.action}\n  CSRF Token: ${f.hasCsrfToken ? 'Present' : 'MISSING'}\n  Inputs: ${f.inputs.map((inp) => `${inp.name} (${inp.type})`).join(', ') || 'None'}`
+          )
+          .join('\n\n');
+
+        const rawOutput = [
+          `Target: ${inspection.url} (Final: ${inspection.finalUrl})`,
+          `HTTP Status: ${inspection.httpStatus}`,
+          `Title: ${inspection.pageTitle}`,
+          `\n--- Extracted Forms (${inspection.forms.length}) ---\n${formattedForms || 'No interactive <form> elements detected'}`,
+          `\n--- Discovered Links (${inspection.links.length}) ---\n${inspection.links.slice(0, 15).map((l) => `• [${l.text || 'Link'}] ${l.href} ${l.isExternal ? '(External)' : ''}`).join('\n') || 'None'}`,
+          `\n--- Console Logs (${inspection.consoleLogs.length}) ---\n${inspection.consoleLogs.map((c) => `[${c.type}] ${c.text}`).join('\n') || 'No console errors.'}`,
+        ].join('\n');
+
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'browser',
+            label: `Browser DOM Exploration (${new URL(inspection.finalUrl).hostname})`,
+            url: inspection.finalUrl,
+            status: 'completed',
+            resultDetails: {
+              statusCode: inspection.httpStatus,
+              responseTime: `${Date.now() - startTime}ms`,
+              matchedResults: signals,
+              rawOutput,
+              screenshotDataUrl: inspection.screenshotBase64,
+            },
+          },
+          rawResult: inspection,
+        };
+      } catch (err: any) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'browser',
+            label: `Browser Exploration Failed (${targetUrl})`,
+            status: 'failed',
+            resultDetails: {
+              matchedResults: [`Playwright error: ${err.message}`],
+              responseTime: `${Date.now() - startTime}ms`,
+              rawOutput: err.stack || err.message,
+            },
+          },
+          rawResult: { error: err.message },
+        };
+      }
+    }
+
+    case 'browser_form_dom_test': {
+      const { targetUrl, action, selector, inputValue } = args;
+      const scope = validateTargetScope(targetUrl);
+      if (!scope.allowed) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'browser',
+            label: `DOM Test (Restricted: ${targetUrl})`,
+            status: 'failed',
+            resultDetails: { matchedResults: [scope.reason || 'Restricted target scope'] },
+          },
+          rawResult: { error: scope.reason },
+        };
+      }
+
+      const startTime = Date.now();
+      try {
+        const result = await interactAndTestDOM(targetUrl, action, selector, inputValue);
+        const signals: string[] = [
+          result.actionTaken,
+          `Initial URL: ${result.initialUrl}`,
+          `Final URL: ${result.finalUrl}`,
+        ];
+
+        if (result.dialogsTriggered.length > 0) {
+          signals.push(...result.dialogsTriggered.map((d) => `🚨 Alert Triggered: ${d}`));
+        }
+        if (result.consoleErrors.length > 0) {
+          signals.push(...result.consoleErrors.map((c) => `⚠️ Console Error: ${c}`));
+        }
+
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'browser',
+            label: `DOM Interaction (${action}: ${selector})`,
+            url: result.finalUrl,
+            status: result.success ? 'completed' : 'failed',
+            resultDetails: {
+              statusCode: result.success ? 200 : 500,
+              responseTime: `${Date.now() - startTime}ms`,
+              matchedResults: signals,
+              rawOutput: `Action: ${result.actionTaken}\nFinal URL: ${result.finalUrl}\nDialogs: ${result.dialogsTriggered.join(', ') || 'None'}\nDOM Text Snippet:\n${result.domSnippet || 'None'}`,
+              screenshotDataUrl: result.screenshotBase64,
+            },
+          },
+          rawResult: result,
+        };
+      } catch (err: any) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'browser',
+            label: `DOM Interaction Failed (${selector})`,
+            status: 'failed',
+            resultDetails: {
+              matchedResults: [`Interaction error: ${err.message}`],
+              responseTime: `${Date.now() - startTime}ms`,
+            },
+          },
+          rawResult: { error: err.message },
+        };
+      }
+    }
+
+    case 'browser_capture_screenshot': {
+      const { targetUrl, selector, fullPage } = args;
+      const scope = validateTargetScope(targetUrl);
+      if (!scope.allowed) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'browser',
+            label: `Screenshot (Restricted: ${targetUrl})`,
+            status: 'failed',
+            resultDetails: { matchedResults: [scope.reason || 'Restricted target scope'] },
+          },
+          rawResult: { error: scope.reason },
+        };
+      }
+
+      const startTime = Date.now();
+      try {
+        const result = await capturePageScreenshot(targetUrl, { selector, fullPage });
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'browser',
+            label: `Page Snapshot (${result.pageTitle})`,
+            url: targetUrl,
+            status: 'completed',
+            resultDetails: {
+              statusCode: result.httpStatus,
+              responseTime: `${Date.now() - startTime}ms`,
+              matchedResults: [
+                `Captured rendered browser viewport (${fullPage ? 'Full Page' : '1280x800'})`,
+                `Page Title: "${result.pageTitle}"`,
+              ],
+              rawOutput: `Rendered snapshot of ${targetUrl} captured successfully.`,
+              screenshotDataUrl: result.screenshotDataUrl,
+            },
+          },
+          rawResult: { url: targetUrl, pageTitle: result.pageTitle, hasScreenshot: true },
+        };
+      } catch (err: any) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'browser',
+            label: `Screenshot Failed (${targetUrl})`,
+            status: 'failed',
+            resultDetails: {
+              matchedResults: [`Capture failed: ${err.message}`],
+              responseTime: `${Date.now() - startTime}ms`,
+            },
+          },
+          rawResult: { error: err.message },
+        };
+      }
+    }
+
+    case 'sandbox_code_execution': {
+      const { language, codeOrCommand } = args;
+      const startTime = Date.now();
+
+      try {
+        const result = await runInSandbox(language, codeOrCommand, { timeoutMs: 30000 });
+        const engineLabel = result.engine === 'e2b_cloud_microvm'
+          ? 'E2B Cloud MicroVM'
+          : result.engine === 'local_docker_container'
+          ? 'Docker Security Sandbox'
+          : 'Isolated Native Engine';
+
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'terminal',
+            label: `Sandboxed Code Runner (${engineLabel})`,
+            status: result.success ? 'completed' : 'failed',
+            resultDetails: {
+              statusCode: result.exitCode === 0 ? 200 : 500,
+              responseTime: `${result.executionTimeMs}ms`,
+              engine: engineLabel,
+              matchedResults: [
+                `Executed via ${engineLabel} (${language.toUpperCase()})`,
+                `Exit Code: ${result.exitCode} | Duration: ${result.executionTimeMs}ms`,
+              ],
+              rawOutput: (result.stdout + (result.stderr ? `\n[STDERR]\n${result.stderr}` : '')).slice(0, 10000),
+            },
+          },
+          rawResult: result,
+        };
+      } catch (err: any) {
+        return {
+          toolCall: {
+            id: toolId,
+            type: 'terminal',
+            label: `Sandbox Execution Failed (${language})`,
+            status: 'failed',
+            resultDetails: {
+              matchedResults: [`Sandbox error: ${err.message}`],
+              responseTime: `${Date.now() - startTime}ms`,
+            },
+          },
+          rawResult: { error: err.message },
+        };
+      }
     }
 
     default:
