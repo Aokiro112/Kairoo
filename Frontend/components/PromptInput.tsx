@@ -220,7 +220,16 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
     const messageText = trimmedInput || (attachments.length > 0 ? 'Audit attached artifacts and source files for security vulnerabilities.' : '');
 
-    onSendMessage(messageText, { mode, target, model: modelId }, attachments);
+    let activeModel = 'llama-3.3-70b-versatile';
+    try {
+      const savedSettings = localStorage.getItem('kairo_app_settings');
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        if (parsed.selectedModel) activeModel = parsed.selectedModel;
+      }
+    } catch {}
+
+    onSendMessage(messageText, { mode, target, model: activeModel }, attachments);
     setInput('');
     setAttachments([]);
     if (textareaRef.current) {

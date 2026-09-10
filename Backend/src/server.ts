@@ -25,21 +25,7 @@ app.use(
   })
 );
 
-// Client IP resolver for rate limiting behind reverse proxies (Railway, Cloudflare, Nginx)
-const getClientIp = (req: express.Request): string => {
-  const cfIp = req.headers['cf-connecting-ip'];
-  if (typeof cfIp === 'string' && cfIp.trim()) return cfIp.trim();
-
-  const realIp = req.headers['x-real-ip'];
-  if (typeof realIp === 'string' && realIp.trim()) return realIp.trim();
-
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.trim()) {
-    return forwarded.split(',')[0].trim();
-  }
-
-  return req.ip || req.socket.remoteAddress || '127.0.0.1';
-};
+import { getClientIp } from './utils/ip';
 
 // 2. Global & Endpoint Rate Limiting (DoS & Brute Force Protection)
 const globalLimiter = rateLimit({
@@ -110,12 +96,21 @@ app.use('/api/projects', projectsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/chat', chatLimiter, chatRouter);
 
-// Groq Key Pool Diagnostic Route
+import { cheaperInferenceManager } from './agent/cheaperInferenceManager';
+
+// Groq & DeepSeek Key Pool Diagnostic Route
 app.get('/api/groq/keys', (req, res) => {
   res.json({
     domain: 'kairo.bond',
-    totalKeys: groqKeyManager.getKeyCount(),
-    poolStatus: groqKeyManager.getPoolStatus(),
+    groq: {
+      totalKeys: groqKeyManager.getKeyCount(),
+      poolStatus: groqKeyManager.getPoolStatus(),
+    },
+    cheaperInference: {
+      hasKey: cheaperInferenceManager.hasKey(),
+      model: cheaperInferenceManager.getModelName(),
+      maxUsesPerUser: cheaperInferenceManager.getMaxUses(),
+    },
   });
 });
 
@@ -124,8 +119,10 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
     domain: 'kairo.bond',
-    service: 'Kairo Security Backend & Groq Multi-Key Agent',
+    service: 'Kairo Security Backend & Multi-Provider Agent',
     groqKeysLoaded: groqKeyManager.getKeyCount(),
+    cheaperInferenceReady: cheaperInferenceManager.hasKey(),
+    deepseekModel: cheaperInferenceManager.getModelName(),
     timestamp: new Date().toISOString(),
   });
 });
@@ -135,4 +132,5 @@ app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`⚡ Kairo Backend Server running on http://0.0.0.0:${PORT}`);
   console.log(`🌐 Primary Domain: https://kairo.bond`);
   console.log(`🔑 Groq API Key Pool: ${groqKeyManager.getKeyCount()} key(s) active with auto-failover.`);
+  console.log(`🧠 CheaperInference DeepSeek: ${cheaperInferenceManager.hasKey() ? 'Active (' + cheaperInferenceManager.getModelName() + ')' : 'No API key set (fallback ready)'}`);
 });

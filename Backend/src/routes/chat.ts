@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../db';
 import { runSecurityAgentStream } from '../agent/engine';
+import { getClientIp } from '../utils/ip';
 
 export const chatRouter = Router();
 
@@ -8,6 +9,7 @@ export const chatRouter = Router();
 chatRouter.post('/', async (req: Request, res: Response) => {
   try {
     const { taskId, projectId, messages, model, userMessageText, attachments } = req.body;
+    const userIdentifier = getClientIp(req);
 
     if ((!userMessageText || typeof userMessageText !== 'string') && (!attachments || !attachments.length)) {
       return res.status(400).json({ error: 'userMessageText or attachments required' });
@@ -66,7 +68,8 @@ chatRouter.post('/', async (req: Request, res: Response) => {
     const agentStream = runSecurityAgentStream(
       messages || [{ role: 'user', content: userMessageText || '' }],
       model,
-      attachments
+      attachments,
+      userIdentifier
     );
 
     for await (const event of agentStream) {

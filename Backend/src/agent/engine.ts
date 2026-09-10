@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import { SECURITY_AGENT_SYSTEM_PROMPT } from './systemPrompt';
 import { SECURITY_AGENT_TOOLS, executeSecurityTool, validateTargetScope, ToolCall } from './tools';
 import { groqKeyManager } from './groqKeyManager';
+import { cheaperInferenceManager } from './cheaperInferenceManager';
 
 dotenv.config();
 
@@ -20,6 +21,14 @@ const VALID_GROQ_MODELS = new Set([
 ]);
 
 const MODEL_ALIAS_MAP: Record<string, string> = {
+  // CheaperInference DeepSeek v4-flash-0731 mappings
+  'v4-flash-0731': 'v4-flash-0731',
+  'v4-flash': 'v4-flash-0731',
+  'deepseek/v4-flash-0731': 'v4-flash-0731',
+  'deepseek-v4-flash': 'v4-flash-0731',
+  'deepseek-v4': 'v4-flash-0731',
+  'deepseek': 'v4-flash-0731',
+
   // Groq GPT-OSS high performance mappings
   'openai/gpt-oss-120b': 'openai/gpt-oss-120b',
   'openai/gpt-oss-20b': 'openai/gpt-oss-20b',
@@ -43,6 +52,18 @@ const MODEL_ALIAS_MAP: Record<string, string> = {
   'groq/compound': 'groq/compound',
   'groq/compound-mini': 'groq/compound-mini',
   'mixtral-8x7b-32768': 'openai/gpt-oss-120b',
+};
+
+export const isCheaperInferenceModel = (requestedModel?: string): boolean => {
+  if (!requestedModel) return false;
+  const clean = requestedModel.trim().toLowerCase();
+  return (
+    clean === 'v4-flash-0731' ||
+    clean === 'v4-flash' ||
+    clean.includes('v4-flash') ||
+    clean.includes('deepseek') ||
+    clean.includes('cheaperinference')
+  );
 };
 
 export const resolveModel = (requestedModel?: string): string => {
@@ -92,9 +113,11 @@ function sanitizeToolResultForLLM(result: any): string {
 export async function* runSecurityAgentStream(
   messages: Array<{ role: string; content: string }>,
   model: string = 'openai/gpt-oss-120b',
-  attachments?: Array<{ id: string; name: string; size: number; content: string; language: string }>
+  attachments?: Array<{ id: string; name: string; size: number; content: string; language: string }>,
+  userIdentifier: string = 'anonymous'
 ): AsyncGenerator<StreamEvent> {
   const activeModel = resolveModel(model);
+  let isUsingCheaperInference = isCheaperInferenceModel(model);
 
   const lastUserMsg = messages[messages.length - 1]?.content || '';
   const hasAttachments = attachments && attachments.length > 0;
@@ -316,6 +339,24 @@ ${executedTools
     return;
   }
 
+  // Check CheaperInference quota & availability for DeepSeek v4-flash-0731
+  let quotaNoticeText = '';
+  if (isUsingCheaperInference) {
+    if (!cheaperInferenceManager.hasKey()) {
+      quotaNoticeText = `DeepSeek v4-flash-0731 selected. No CHEAPER_INFERENCE_API_KEY found in environment; automatically routing to Groq GPT-OSS cluster.`;
+      isUsingCheaperInference = false;
+    } else {
+      const quota = cheaperInferenceManager.checkQuota(userIdentifier);
+      if (!quota.allowed) {
+        quotaNoticeText = `DeepSeek v4-flash-0731 quota reached (${quota.currentUsage}/${quota.maxUses} free uses used). Seamlessly routing to Groq GPT-OSS security cluster.`;
+        isUsingCheaperInference = false;
+      } else {
+        const usedCount = cheaperInferenceManager.consumeQuota(userIdentifier);
+        quotaNoticeText = `Routing through DeepSeek v4-flash-0731 (platform.cheaperinference.com) [Session Quota: ${usedCount}/${cheaperInferenceManager.getMaxUses()} used].`;
+      }
+    }
+  }
+
   // Live Multi-Turn ReAct Agent Execution with Groq Multi-Key Rotation Pool
   try {
     const groqTools: any[] = SECURITY_AGENT_TOOLS.map((t) => ({
@@ -348,7 +389,9 @@ ${executedTools
       data: {
         id: `step-reasoning-${Date.now()}`,
         type: 'reasoning',
-        text: hasAttachments
+        text: quotaNoticeText
+          ? quotaNoticeText
+          : hasAttachments
           ? `Ingesting ${attachments.length} attached file(s) (${attachments.map((a) => a.name).join(', ')}). Formulating Static AST code analysis and vulnerability verification workflow.`
           : targetDomain
           ? `Target \`${targetDomain}\` detected. Formulating diagnostic reconnaissance workflow and attack surface mapping.`
@@ -363,20 +406,50 @@ ${executedTools
     while (loopCount < maxLoops) {
       loopCount++;
 
-      const stream = await groqKeyManager.executeWithRotation(
-        `ReAct Step #${loopCount}`,
-        async (groqClient) => {
-          return await groqClient.chat.completions.create({
-            model: activeModel,
+      let stream: any;
+      if (isUsingCheaperInference) {
+        try {
+          stream = await cheaperInferenceManager.executeStream({
             messages: conversationHistory,
             tools: groqTools,
-            tool_choice: 'auto',
+            model: 'v4-flash-0731',
             temperature: 0.2,
             max_tokens: 3072,
-            stream: true,
           });
+        } catch (ciErr: any) {
+          console.warn(`⚠️ [Engine] CheaperInference stream error: ${ciErr.message}. Failing over to Groq cluster.`);
+          isUsingCheaperInference = false;
+          stream = await groqKeyManager.executeWithRotation(
+            `ReAct Step #${loopCount} (Groq Failover)`,
+            async (groqClient) => {
+              return await groqClient.chat.completions.create({
+                model: 'openai/gpt-oss-120b',
+                messages: conversationHistory,
+                tools: groqTools,
+                tool_choice: 'auto',
+                temperature: 0.2,
+                max_tokens: 3072,
+                stream: true,
+              });
+            }
+          );
         }
-      );
+      } else {
+        stream = await groqKeyManager.executeWithRotation(
+          `ReAct Step #${loopCount}`,
+          async (groqClient) => {
+            return await groqClient.chat.completions.create({
+              model: activeModel,
+              messages: conversationHistory,
+              tools: groqTools,
+              tool_choice: 'auto',
+              temperature: 0.2,
+              max_tokens: 3072,
+              stream: true,
+            });
+          }
+        );
+      }
 
       const toolCallsMap: Record<number, { id: string; name: string; arguments: string }> = {};
       let textContent = '';
@@ -505,20 +578,48 @@ ${executedTools
           'Based on all the diagnostic tool results gathered above, now synthesize and present the complete technical security audit report. Include: Executive Summary, Vulnerability Matrix Table (with Severity, Endpoint, Finding, Remediation), Proof of Concept/Configuration snippets, and Remediation Steps.',
       });
 
-      const finalStream = await groqKeyManager.executeWithRotation(
-        'Final Synthesis Stream Fallback',
-        async (groqClient) => {
-          return await groqClient.chat.completions.create({
-            model: activeModel,
+      let finalStream: any;
+      if (isUsingCheaperInference) {
+        try {
+          finalStream = await cheaperInferenceManager.executeStream({
             messages: conversationHistory,
             tools: groqTools,
-            tool_choice: 'auto',
+            model: 'v4-flash-0731',
             temperature: 0.2,
             max_tokens: 3072,
-            stream: true,
           });
+        } catch {
+          finalStream = await groqKeyManager.executeWithRotation(
+            'Final Synthesis Stream Fallback (Groq Failover)',
+            async (groqClient) => {
+              return await groqClient.chat.completions.create({
+                model: 'openai/gpt-oss-120b',
+                messages: conversationHistory,
+                tools: groqTools,
+                tool_choice: 'auto',
+                temperature: 0.2,
+                max_tokens: 3072,
+                stream: true,
+              });
+            }
+          );
         }
-      );
+      } else {
+        finalStream = await groqKeyManager.executeWithRotation(
+          'Final Synthesis Stream Fallback',
+          async (groqClient) => {
+            return await groqClient.chat.completions.create({
+              model: activeModel,
+              messages: conversationHistory,
+              tools: groqTools,
+              tool_choice: 'auto',
+              temperature: 0.2,
+              max_tokens: 3072,
+              stream: true,
+            });
+          }
+        );
+      }
 
       for await (const chunk of finalStream) {
         const text = chunk.choices[0]?.delta?.content;

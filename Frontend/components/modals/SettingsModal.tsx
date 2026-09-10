@@ -327,6 +327,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Recommended • Fast Reasoning)</option>
                       <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Sub-100ms Reconnaissance)</option>
                       <option value="openai/gpt-oss-120b">GPT-OSS 120B (High-Reasoning Vulnerability Synthesis)</option>
+                      <option value="v4-flash-0731">DeepSeek v4 Flash (CheaperInference • 2 Uses Limit)</option>
                     </select>
                   </div>
 
