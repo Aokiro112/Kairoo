@@ -460,7 +460,14 @@ function ChatWorkspaceContent() {
                     const msgs = [...t.messages];
                     const last = { ...msgs[msgs.length - 1] };
                     if (last.role === 'assistant') {
-                      last.steps = [...(last.steps || []), step];
+                      const steps = last.steps ? [...last.steps] : [];
+                      const existingIdx = steps.findIndex((s) => s.id === step.id);
+                      if (existingIdx >= 0) {
+                        steps[existingIdx] = { ...steps[existingIdx], ...step };
+                      } else {
+                        steps.push(step);
+                      }
+                      last.steps = steps;
                       msgs[msgs.length - 1] = last;
                     }
                     return { ...t, messages: msgs };
@@ -474,7 +481,14 @@ function ChatWorkspaceContent() {
                     const msgs = [...t.messages];
                     const last = { ...msgs[msgs.length - 1] };
                     if (last.role === 'assistant') {
-                      last.steps = [...(last.steps || []), step];
+                      const steps = last.steps ? [...last.steps] : [];
+                      const existingIdx = steps.findIndex((s) => s.id === step.id);
+                      if (existingIdx >= 0) {
+                        steps[existingIdx] = { ...steps[existingIdx], ...step };
+                      } else {
+                        steps.push(step);
+                      }
+                      last.steps = steps;
                       msgs[msgs.length - 1] = last;
                     }
                     return { ...t, messages: msgs };

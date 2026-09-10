@@ -81,7 +81,13 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
 
     for await (const event of agentStream) {
       if (event.type === 'reasoning' || event.type === 'tool_group') {
-        accumulatedSteps.push(event.data);
+        const stepId = event.data?.id;
+        const existingIdx = accumulatedSteps.findIndex((s) => s.id === stepId);
+        if (existingIdx >= 0) {
+          accumulatedSteps[existingIdx] = { ...accumulatedSteps[existingIdx], ...event.data };
+        } else {
+          accumulatedSteps.push(event.data);
+        }
       } else if (event.type === 'content_chunk') {
         accumulatedContent += event.data;
       }

@@ -220,7 +220,7 @@ class CheaperInferenceManager {
       model: modelToUse,
       messages: params.messages,
       temperature: params.temperature ?? 0.2,
-      max_tokens: params.max_tokens ?? 3072,
+      max_tokens: params.max_tokens ?? 4096,
       stream: true,
     };
 
