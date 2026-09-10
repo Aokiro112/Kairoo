@@ -13,7 +13,10 @@ import {
   X,
   AlertCircle,
   FileText,
-  Code2
+  Code2,
+  Check,
+  Sparkles,
+  Cpu
 } from 'lucide-react';
 import { AttachedFile } from '@/types/chat';
 
@@ -71,6 +74,55 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+export interface ModelOption {
+  id: string;
+  name: string;
+  shortName: string;
+  badge?: string;
+  badgeColor?: string;
+  description: string;
+  provider: string;
+}
+
+export const AVAILABLE_MODELS: ModelOption[] = [
+  {
+    id: 'llama-3.3-70b-versatile',
+    name: 'Llama 3.3 70B',
+    shortName: 'Llama 3.3 70B',
+    badge: 'Recommended',
+    badgeColor: 'bg-emerald-950/70 text-emerald-400 border-emerald-500/30',
+    description: 'Ultra-fast security auditor & payload synthesis',
+    provider: 'Groq',
+  },
+  {
+    id: 'v4-flash-0731',
+    name: 'DeepSeek v4 Flash',
+    shortName: 'DeepSeek v4',
+    badge: '2 Free Uses',
+    badgeColor: 'bg-cyan-950/70 text-cyan-400 border-cyan-500/30',
+    description: 'CheaperInference DeepSeek reasoning model (2 uses / user limit)',
+    provider: 'CheaperInference',
+  },
+  {
+    id: 'openai/gpt-oss-120b',
+    name: 'GPT-OSS 120B',
+    shortName: 'GPT-OSS 120B',
+    badge: 'Deep Audit',
+    badgeColor: 'bg-purple-950/70 text-purple-400 border-purple-500/30',
+    description: 'Maximum depth vulnerability synthesis & exploit mapping',
+    provider: 'Groq Cluster',
+  },
+  {
+    id: 'llama-3.1-8b-instant',
+    name: 'Llama 3.1 8B Instant',
+    shortName: 'Llama 3.1 8B',
+    badge: 'Sub-100ms',
+    badgeColor: 'bg-amber-950/70 text-amber-400 border-amber-500/30',
+    description: 'Ultra low-latency network recon & fast triage',
+    provider: 'Groq',
+  },
+];
+
 interface PromptInputProps {
   onSendMessage: (
     text: string,
@@ -96,12 +148,52 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const [attachments, setAttachments] = useState<AttachedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const modelId = 'llama-3.3-70b-versatile';
+  const [selectedModel, setSelectedModel] = useState<string>('llama-3.3-70b-versatile');
 
-  const [openDropdown, setOpenDropdown] = useState<'plus' | 'mode' | 'target' | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<'plus' | 'mode' | 'target' | 'model' | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync selectedModel from localStorage on mount & listen to storage events
+  useEffect(() => {
+    try {
+      const savedSettings = localStorage.getItem('kairo_app_settings');
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        if (parsed.selectedModel) {
+          setSelectedModel(parsed.selectedModel);
+        }
+      }
+    } catch {}
+
+    const handleStorage = () => {
+      try {
+        const saved = localStorage.getItem('kairo_app_settings');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.selectedModel) {
+            setSelectedModel(parsed.selectedModel);
+          }
+        }
+      } catch {}
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  const handleSelectModel = (mId: string) => {
+    setSelectedModel(mId);
+    try {
+      const savedSettings = localStorage.getItem('kairo_app_settings');
+      const existing = savedSettings ? JSON.parse(savedSettings) : {};
+      localStorage.setItem(
+        'kairo_app_settings',
+        JSON.stringify({ ...existing, selectedModel: mId })
+      );
+    } catch {}
+    setOpenDropdown(null);
+  };
 
   useEffect(() => {
     if (initialValue) {
@@ -220,16 +312,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
     const messageText = trimmedInput || (attachments.length > 0 ? 'Audit attached artifacts and source files for security vulnerabilities.' : '');
 
-    let activeModel = 'llama-3.3-70b-versatile';
-    try {
-      const savedSettings = localStorage.getItem('kairo_app_settings');
-      if (savedSettings) {
-        const parsed = JSON.parse(savedSettings);
-        if (parsed.selectedModel) activeModel = parsed.selectedModel;
-      }
-    } catch {}
-
-    onSendMessage(messageText, { mode, target, model: activeModel }, attachments);
+    onSendMessage(messageText, { mode, target, model: selectedModel }, attachments);
     setInput('');
     setAttachments([]);
     if (textareaRef.current) {
@@ -458,10 +541,75 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
-            {/* Dedicated Model Indicator */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono text-[#A3A3A0] select-none bg-[#141414] border border-[#222222]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#B8FF3D] animate-pulse" />
-              <span>Llama 3.3 70B</span>
+            {/* Interactive Model Switcher */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === 'model' ? null : 'model')}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono text-[#E4E4E0] bg-[#171717] hover:bg-[#222222] border border-[#2B2B2B] hover:border-[#3E3E3E] transition-all shadow-sm group cursor-pointer"
+                title="Switch AI Inference Model"
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    selectedModel === 'v4-flash-0731'
+                      ? 'bg-cyan-400'
+                      : selectedModel === 'openai/gpt-oss-120b'
+                      ? 'bg-purple-400'
+                      : selectedModel === 'llama-3.1-8b-instant'
+                      ? 'bg-amber-400'
+                      : 'bg-[#B8FF3D]'
+                  } animate-pulse`}
+                />
+                <span className="font-medium group-hover:text-white transition-colors">
+                  {AVAILABLE_MODELS.find((m) => m.id === selectedModel)?.shortName || 'Llama 3.3 70B'}
+                </span>
+                <ChevronDown className="w-3 h-3 text-[#777777] group-hover:text-white transition-colors" />
+              </button>
+
+              {openDropdown === 'model' && (
+                <div className="absolute bottom-9 right-0 w-72 sm:w-80 bg-[#141414] border border-[#2A2A2A] rounded-2xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-2.5 py-1.5 mb-1 border-b border-[#222222] flex items-center justify-between">
+                    <span className="text-[11px] font-mono font-bold text-[#888888] uppercase tracking-wider">
+                      Inference Engine
+                    </span>
+                    <span className="text-[10px] font-mono text-emerald-400">Live Switch</span>
+                  </div>
+                  <div className="space-y-1">
+                    {AVAILABLE_MODELS.map((m) => {
+                      const isSelected = selectedModel === m.id;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => handleSelectModel(m.id)}
+                          className={`w-full flex items-start justify-between p-2 rounded-xl text-left transition-all ${
+                            isSelected
+                              ? 'bg-[#222222] border border-[#383838] text-white shadow-sm'
+                              : 'text-[#AAAAAA] hover:bg-[#1C1C1C] hover:text-white border border-transparent'
+                          }`}
+                        >
+                          <div className="space-y-0.5 pr-2 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-xs text-white truncate">{m.name}</span>
+                              {m.badge && (
+                                <span className={`px-1.5 py-0.2 rounded text-[9.5px] font-mono border ${m.badgeColor}`}>
+                                  {m.badge}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-[#777777] leading-snug line-clamp-2">
+                              {m.description}
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Send Button */}
