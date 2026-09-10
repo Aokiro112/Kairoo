@@ -15,9 +15,9 @@ export const AVAILABLE_MODELS = [
     description: 'Fastest security reasoning, tool-calling & exploit script generator',
   },
   {
-    id: 'deepseek-r1-distill-llama-70b',
-    name: 'DeepSeek R1 (70B Reasoning)',
-    description: 'Deep chain-of-thought threat modeling and vulnerability architecture analysis',
+    id: 'openai/gpt-oss-120b',
+    name: 'GPT-OSS 120B',
+    description: 'Deep multi-step threat modeling and vulnerability architecture analysis',
   },
   {
     id: 'llama-3.1-8b-instant',

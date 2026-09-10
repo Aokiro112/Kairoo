@@ -41,8 +41,7 @@ model ChatMessage {
 model UserUsage {
   id           String   @id @default(cuid())
   identifier   String   @unique // email (or IP if unauthenticated)
-  deepseekUses Int      @default(0)
+  chatUses     Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
-

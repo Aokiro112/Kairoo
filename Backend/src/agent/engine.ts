@@ -2,7 +2,6 @@ import dotenv from 'dotenv';
 import { SECURITY_AGENT_SYSTEM_PROMPT } from './systemPrompt';
 import { SECURITY_AGENT_TOOLS, executeSecurityTool, validateTargetScope, ToolCall } from './tools';
 import { groqKeyManager } from './groqKeyManager';
-import { cheaperInferenceManager } from './cheaperInferenceManager';
 
 dotenv.config();
 
@@ -21,16 +20,7 @@ const VALID_GROQ_MODELS = new Set([
 ]);
 
 const MODEL_ALIAS_MAP: Record<string, string> = {
-  // DeepSeek failover fallback to Groq GPT-OSS 120B
-  'v4-flash-0731': 'openai/gpt-oss-120b',
-  'v4-flash': 'openai/gpt-oss-120b',
-  'deepseek/v4-flash-0731': 'openai/gpt-oss-120b',
-  'deepseek-v4-flash-0731': 'openai/gpt-oss-120b',
-  'deepseek-v4-flash': 'openai/gpt-oss-120b',
-  'deepseek-v4': 'openai/gpt-oss-120b',
-  'deepseek': 'openai/gpt-oss-120b',
-
-  // Groq high performance mappings
+  // High performance Groq mappings
   'openai/gpt-oss-120b': 'openai/gpt-oss-120b',
   'openai/gpt-oss-20b': 'openai/gpt-oss-20b',
   'gpt-oss-120b': 'openai/gpt-oss-120b',
@@ -45,23 +35,10 @@ const MODEL_ALIAS_MAP: Record<string, string> = {
   'llama-3.1-8b': 'openai/gpt-oss-20b',
 };
 
-export const isCheaperInferenceModel = (requestedModel?: string): boolean => {
-  if (!requestedModel) return false;
-  const clean = requestedModel.trim().toLowerCase();
-  return (
-    clean === 'v4-flash-0731' ||
-    clean === 'v4-flash' ||
-    clean.includes('v4-flash') ||
-    clean.includes('deepseek') ||
-    clean.includes('cheaperinference')
-  );
-};
-
 export const resolveModel = (requestedModel?: string): string => {
   if (!requestedModel) return 'openai/gpt-oss-120b';
   const clean = requestedModel.trim().toLowerCase();
 
-  // Exact alias map lookup
   if (MODEL_ALIAS_MAP[clean]) {
     return MODEL_ALIAS_MAP[clean];
   }
@@ -152,7 +129,6 @@ export async function* runSecurityAgentStream(
   userIdentifier: string = 'anonymous'
 ): AsyncGenerator<StreamEvent> {
   const activeModel = resolveModel(model);
-  let isUsingCheaperInference = isCheaperInferenceModel(model);
 
   const lastUserMsg = messages[messages.length - 1]?.content || '';
   const hasAttachments = attachments && attachments.length > 0;
@@ -374,11 +350,6 @@ ${executedTools
     return;
   }
 
-  // Check CheaperInference key availability for DeepSeek v4-flash-0731
-  if (isUsingCheaperInference && !cheaperInferenceManager.hasKey()) {
-    isUsingCheaperInference = false;
-  }
-
   // Live Multi-Turn ReAct Agent Execution with Groq Multi-Key Rotation Pool
   try {
     const groqTools: any[] = SECURITY_AGENT_TOOLS.map((t) => ({
@@ -406,7 +377,6 @@ ${executedTools
       ...formattedHistory,
     ];
 
-    // Live Multi-Turn ReAct Agent Execution with Groq Multi-Key Rotation Pool
     let loopCount = 0;
     const maxLoops = 2;
     let finalReportGenerated = false;
@@ -416,138 +386,53 @@ ${executedTools
     while (loopCount < maxLoops) {
       loopCount++;
 
-      let streamSource: any;
-      if (isUsingCheaperInference) {
-        try {
-          streamSource = cheaperInferenceManager.executeStream({
+      const streamSource = await groqKeyManager.executeWithRotation(
+        `ReAct Step #${loopCount}`,
+        async (groqClient) => {
+          return await groqClient.chat.completions.create({
+            model: activeModel,
             messages: conversationHistory,
             tools: groqTools,
-            model: 'deepseek-v4-flash-0731',
+            tool_choice: 'auto',
             temperature: 0.2,
             max_tokens: 4096,
+            stream: true,
           });
-        } catch (ciErr: any) {
-          console.warn(`⚠️ [Engine] CheaperInference stream init error: ${ciErr.message}. Failing over to Groq cluster.`);
-          isUsingCheaperInference = false;
-          streamSource = await groqKeyManager.executeWithRotation(
-            `ReAct Step #${loopCount} (Groq Failover)`,
-            async (groqClient) => {
-              return await groqClient.chat.completions.create({
-                model: 'openai/gpt-oss-120b',
-                messages: conversationHistory,
-                tools: groqTools,
-                tool_choice: 'auto',
-                temperature: 0.2,
-                max_tokens: 4096,
-                stream: true,
-              });
-            }
-          );
         }
-      } else {
-        streamSource = await groqKeyManager.executeWithRotation(
-          `ReAct Step #${loopCount}`,
-          async (groqClient) => {
-            return await groqClient.chat.completions.create({
-              model: activeModel,
-              messages: conversationHistory,
-              tools: groqTools,
-              tool_choice: 'auto',
-              temperature: 0.2,
-              max_tokens: 4096,
-              stream: true,
-            });
-          }
-        );
-      }
+      );
 
       const toolCallsMap: Record<number, { id: string; name: string; arguments: string }> = {};
       let textContent = '';
-      let streamedAnyChunk = false;
 
-      try {
-        for await (const chunk of streamSource) {
-          streamedAnyChunk = true;
-          const delta = chunk.choices[0]?.delta;
-          if (!delta) continue;
+      for await (const chunk of streamSource) {
+        const delta = chunk.choices[0]?.delta;
+        if (!delta) continue;
 
-          // Ignore delta.reasoning completely so internal thinking is never shown
-
-          if (delta.tool_calls) {
-            for (const tc of delta.tool_calls) {
-              const idx = tc.index ?? 0;
-              if (!toolCallsMap[idx]) {
-                toolCallsMap[idx] = {
-                  id: tc.id || `call_${Date.now()}_${idx}`,
-                  name: tc.function?.name || '',
-                  arguments: '',
-                };
-              }
-              if (tc.id) toolCallsMap[idx].id = tc.id;
-              if (tc.function?.name) toolCallsMap[idx].name = tc.function.name;
-              if (tc.function?.arguments) toolCallsMap[idx].arguments += tc.function.arguments;
+        if (delta.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index ?? 0;
+            if (!toolCallsMap[idx]) {
+              toolCallsMap[idx] = {
+                id: tc.id || `call_${Date.now()}_${idx}`,
+                name: tc.function?.name || '',
+                arguments: '',
+              };
             }
-          }
-
-          if (delta.content) {
-            textContent += delta.content;
-            // If no tools have been run yet and no tool calls in this chunk, stream clean conversational response live
-            if (!executedAnyTools && Object.keys(toolCallsMap).length === 0) {
-              const clean = thinkFilter(delta.content);
-              if (clean) {
-                yield { type: 'content_chunk', data: clean };
-              }
-            }
+            if (tc.id) toolCallsMap[idx].id = tc.id;
+            if (tc.function?.name) toolCallsMap[idx].name = tc.function.name;
+            if (tc.function?.arguments) toolCallsMap[idx].arguments += tc.function.arguments;
           }
         }
-      } catch (streamErr: any) {
-        if (isUsingCheaperInference && !streamedAnyChunk) {
-          console.warn(`⚠️ [Engine] CheaperInference stream iteration failed: ${streamErr.message}. Failing over to Groq cluster.`);
-          isUsingCheaperInference = false;
-          const failoverStream = await groqKeyManager.executeWithRotation(
-            `ReAct Step #${loopCount} (Groq Iteration Failover)`,
-            async (groqClient) => {
-              return await groqClient.chat.completions.create({
-                model: 'openai/gpt-oss-120b',
-                messages: conversationHistory,
-                tools: groqTools,
-                tool_choice: 'auto',
-                temperature: 0.2,
-                max_tokens: 4096,
-                stream: true,
-              });
-            }
-          );
-          for await (const chunk of failoverStream) {
-            const delta = chunk.choices[0]?.delta;
-            if (!delta) continue;
-            if (delta.tool_calls) {
-              for (const tc of delta.tool_calls) {
-                const idx = tc.index ?? 0;
-                if (!toolCallsMap[idx]) {
-                  toolCallsMap[idx] = {
-                    id: tc.id || `call_${Date.now()}_${idx}`,
-                    name: tc.function?.name || '',
-                    arguments: '',
-                  };
-                }
-                if (tc.id) toolCallsMap[idx].id = tc.id;
-                if (tc.function?.name) toolCallsMap[idx].name = tc.function.name;
-                if (tc.function?.arguments) toolCallsMap[idx].arguments += tc.function.arguments;
-              }
-            }
-            if (delta.content) {
-              textContent += delta.content;
-              if (!executedAnyTools && Object.keys(toolCallsMap).length === 0) {
-                const clean = thinkFilter(delta.content);
-                if (clean) {
-                  yield { type: 'content_chunk', data: clean };
-                }
-              }
+
+        if (delta.content) {
+          textContent += delta.content;
+          // If no tools have been run yet and no tool calls in this chunk, stream clean conversational response live
+          if (!executedAnyTools && Object.keys(toolCallsMap).length === 0) {
+            const clean = thinkFilter(delta.content);
+            if (clean) {
+              yield { type: 'content_chunk', data: clean };
             }
           }
-        } else {
-          throw streamErr;
         }
       }
 
@@ -637,88 +522,30 @@ ${executedTools
           'All diagnostic reconnaissance and security evaluation tools have completed execution. Based on all the findings gathered above, present the complete, exhaustive Technical Security Audit Report in markdown format.\n\nStructure:\n# 🛡️ Executive Security Summary (Target, Scope, Overall Risk Level)\n## 🎯 Attack Surface & Discovery Overview\n## 🚨 Vulnerability Matrix Table (| ID | Severity | Endpoint / Component | Finding & Impact | Remediation Summary |)\n## 🔬 In-Depth Technical Findings & Evidence\n## 🛠️ Prioritized Remediation Roadmap (Immediate P0, Medium-term P1, Long-term P2)',
       });
 
-      let finalStreamSource: any;
-      if (isUsingCheaperInference) {
-        try {
-          finalStreamSource = cheaperInferenceManager.executeStream({
+      const finalStreamSource = await groqKeyManager.executeWithRotation(
+        'Final Synthesis Stream',
+        async (groqClient) => {
+          return await groqClient.chat.completions.create({
+            model: activeModel,
             messages: conversationHistory,
-            model: 'deepseek-v4-flash-0731',
             temperature: 0.2,
             max_tokens: 4096,
+            stream: true,
           });
-        } catch {
-          finalStreamSource = await groqKeyManager.executeWithRotation(
-            'Final Synthesis Stream Fallback (Groq Failover)',
-            async (groqClient) => {
-              return await groqClient.chat.completions.create({
-                model: 'openai/gpt-oss-120b',
-                messages: conversationHistory,
-                temperature: 0.2,
-                max_tokens: 4096,
-                stream: true,
-              });
-            }
-          );
         }
-      } else {
-        finalStreamSource = await groqKeyManager.executeWithRotation(
-          'Final Synthesis Stream Fallback',
-          async (groqClient) => {
-            return await groqClient.chat.completions.create({
-              model: activeModel,
-              messages: conversationHistory,
-              temperature: 0.2,
-              max_tokens: 4096,
-              stream: true,
-            });
-          }
-        );
-      }
+      );
 
-      let finalStreamedAny = false;
       const synthesisThinkFilter = createThinkFilter();
 
-      try {
-        for await (const chunk of finalStreamSource) {
-          finalStreamedAny = true;
-          const delta = chunk.choices[0]?.delta;
-          if (!delta) continue;
+      for await (const chunk of finalStreamSource) {
+        const delta = chunk.choices[0]?.delta;
+        if (!delta) continue;
 
-          // Ignore reasoningDelta - thinking is hidden
-
-          if (delta.content) {
-            const clean = synthesisThinkFilter(delta.content);
-            if (clean) {
-              yield { type: 'content_chunk', data: clean };
-            }
+        if (delta.content) {
+          const clean = synthesisThinkFilter(delta.content);
+          if (clean) {
+            yield { type: 'content_chunk', data: clean };
           }
-        }
-      } catch (finalErr: any) {
-        if (isUsingCheaperInference && !finalStreamedAny) {
-          console.warn(`⚠️ [Engine] CheaperInference synthesis stream failed: ${finalErr.message}. Failing over to Groq cluster.`);
-          const failoverSynthesis = await groqKeyManager.executeWithRotation(
-            'Final Synthesis Stream Failover (Groq)',
-            async (groqClient) => {
-              return await groqClient.chat.completions.create({
-                model: 'openai/gpt-oss-120b',
-                messages: conversationHistory,
-                temperature: 0.2,
-                max_tokens: 4096,
-                stream: true,
-              });
-            }
-          );
-          for await (const chunk of failoverSynthesis) {
-            const text = chunk.choices[0]?.delta?.content;
-            if (text) {
-              const clean = synthesisThinkFilter(text);
-              if (clean) {
-                yield { type: 'content_chunk', data: clean };
-              }
-            }
-          }
-        } else {
-          throw finalErr;
         }
       }
     }

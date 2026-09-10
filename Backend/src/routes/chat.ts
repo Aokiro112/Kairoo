@@ -26,7 +26,7 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
         where: { identifier: userIdentifier },
       });
       if (record) {
-        currentUsage = record.deepseekUses;
+        currentUsage = record.chatUses;
       }
     } catch {}
 
@@ -43,8 +43,8 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
     try {
       await prisma.userUsage.upsert({
         where: { identifier: userIdentifier },
-        update: { deepseekUses: { increment: 1 } },
-        create: { identifier: userIdentifier, deepseekUses: 1 },
+        update: { chatUses: { increment: 1 } },
+        create: { identifier: userIdentifier, chatUses: 1 },
       });
     } catch {}
 

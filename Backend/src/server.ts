@@ -96,20 +96,13 @@ app.use('/api/projects', projectsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/chat', chatLimiter, chatRouter);
 
-import { cheaperInferenceManager } from './agent/cheaperInferenceManager';
-
-// Groq & DeepSeek Key Pool Diagnostic Route
+// Groq Key Pool Diagnostic Route
 app.get('/api/groq/keys', (req, res) => {
   res.json({
     domain: 'kairo.bond',
     groq: {
       totalKeys: groqKeyManager.getKeyCount(),
       poolStatus: groqKeyManager.getPoolStatus(),
-    },
-    cheaperInference: {
-      hasKey: cheaperInferenceManager.hasKey(),
-      model: cheaperInferenceManager.getModelName(),
-      maxUsesPerUser: cheaperInferenceManager.getMaxUses(),
     },
   });
 });
@@ -119,10 +112,8 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
     domain: 'kairo.bond',
-    service: 'Kairo Security Backend & Multi-Provider Agent',
+    service: 'Kairo Security Backend & Groq Multi-Key Agent',
     groqKeysLoaded: groqKeyManager.getKeyCount(),
-    cheaperInferenceReady: cheaperInferenceManager.hasKey(),
-    deepseekModel: cheaperInferenceManager.getModelName(),
     timestamp: new Date().toISOString(),
   });
 });
@@ -132,5 +123,4 @@ app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`⚡ Kairo Backend Server running on http://0.0.0.0:${PORT}`);
   console.log(`🌐 Primary Domain: https://kairo.bond`);
   console.log(`🔑 Groq API Key Pool: ${groqKeyManager.getKeyCount()} key(s) active with auto-failover.`);
-  console.log(`🧠 CheaperInference DeepSeek: ${cheaperInferenceManager.hasKey() ? 'Active (' + cheaperInferenceManager.getModelName() + ')' : 'No API key set (fallback ready)'}`);
 });

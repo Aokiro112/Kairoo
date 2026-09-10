@@ -92,7 +92,7 @@ Content-Security-Policy: default-src 'self' https:;
 Referrer-Policy: strict-origin-when-cross-origin
 \`\`\`
 
-> 💡 **Tip**: To enable continuous multi-turn AI reasoning with \`Llama 3.3 70B\` and \`DeepSeek-R1\`, paste your free API key into \`Frontend/.env.local\` (\`GROQ_API_KEY="gsk_..."\`).`
+> 💡 **Tip**: To enable continuous multi-turn AI reasoning with \`Llama 3.3 70B\` and \`GPT-OSS 120B\`, paste your free API key into \`Frontend/.env.local\` (\`GROQ_API_KEY="gsk_..."\`).`
       : `### 🛡️ Security Analysis & Guidance
 
 I have processed your security request. For live autonomous tool execution and exploit analysis on custom code or targets, ensure your **GROQ_API_KEY** is configured in \`.env.local\`.

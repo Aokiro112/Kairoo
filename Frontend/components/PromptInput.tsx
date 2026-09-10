@@ -95,13 +95,13 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     provider: 'Groq',
   },
   {
-    id: 'v4-flash-0731',
-    name: 'DeepSeek v4 Flash',
-    shortName: 'DeepSeek v4',
-    badge: '2 Free Uses',
-    badgeColor: 'bg-cyan-950/70 text-cyan-400 border-cyan-500/30',
-    description: 'CheaperInference DeepSeek reasoning model (2 uses / user limit)',
-    provider: 'CheaperInference',
+    id: 'openai/gpt-oss-120b',
+    name: 'GPT-OSS 120B',
+    shortName: 'GPT-OSS 120B',
+    badge: 'High Precision',
+    badgeColor: 'bg-blue-950/70 text-blue-400 border-blue-500/30',
+    description: 'Comprehensive vulnerability assessment & attack surface mapping',
+    provider: 'Groq',
   },
 ];
 
