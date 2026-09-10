@@ -9,9 +9,9 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "prisma generate && prisma db push --accept-data-loss && tsc",
-    "postinstall": "prisma generate",
-    "start": "node dist/server.js"
+    "build": "prisma generate && tsc",
+    "start": "prisma db push --accept-data-loss && node dist/server.js",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@e2b/code-interpreter": "^2.8.0",

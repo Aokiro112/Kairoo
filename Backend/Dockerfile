@@ -2,7 +2,7 @@ FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-# Install system utilities and Chromium dependencies for Playwright
+# Install system dependencies for OpenSSL (Prisma) and Playwright Chromium
 RUN apt-get update && apt-get install -y \
     openssl \
     ca-certificates \
@@ -25,17 +25,23 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
-COPY ../Database ../Database
+COPY prisma ./prisma
 
 RUN npm install
 
 COPY . .
 
+# Set a fallback DATABASE_URL for build-time generation
+ENV DATABASE_URL="file:/app/prisma/dev.db"
+
 RUN npm run build
+
+# Install Playwright chromium browser binaries
+RUN npx playwright install chromium || true
 
 ENV NODE_ENV=production
 ENV PORT=5000
 
 EXPOSE 5000
 
-CMD ["node", "dist/server.js"]
+CMD ["npm", "run", "start"]
