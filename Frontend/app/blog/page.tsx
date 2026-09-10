@@ -16,6 +16,16 @@ import { Footer } from '@/components/Footer';
 export default function BlogListingPage() {
   const posts = [
     {
+      slug: 'browser-automation-visual-recon',
+      badge: 'Core Engine Update',
+      status: 'Feature Live',
+      title: 'Autonomous Browser Exploration & Visual Security Reconnaissance in Kairo',
+      excerpt: 'Kairo can now boot headless Chromium instances, inspect live single-page app DOM trees, extract interactive forms, audit anti-CSRF protections & cookie security flags, and capture real-time viewport screenshot proof of state with sub-3-second route-blocking execution.',
+      date: 'September 10, 2026',
+      readTime: '4 min read',
+      author: 'Kairo Core Team',
+    },
+    {
       slug: 'file-attachments',
       badge: 'Product Update',
       status: 'Feature Live',
