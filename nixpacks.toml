@@ -1,0 +1,6 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "openssl"]
+
+[variables]
+NIXPACKS_NODE_VERSION = "20"
+PLAYWRIGHT_BROWSERS_PATH = "0"
