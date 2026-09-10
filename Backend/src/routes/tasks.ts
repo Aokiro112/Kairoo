@@ -18,7 +18,10 @@ tasksRouter.get('/', async (req: Request, res: Response) => {
       },
     });
 
-    const formatted = tasks.map((t) => ({
+    // Filter out orphaned single-turn/abandoned tasks with no assistant reply
+    const validSessions = tasks.filter((t) => t.messages.length >= 2 || (t.messages.length === 1 && t.messages[0].role === 'user' && (Date.now() - t.createdAt.getTime() < 60000)));
+
+    const formatted = validSessions.map((t) => ({
       id: t.id,
       title: t.title,
       projectId: t.projectId,

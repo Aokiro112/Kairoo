@@ -96,16 +96,17 @@ function ChatWorkspaceContent() {
           );
           setTasks((prevTasks) => {
             const taskMap = new Map<string, TaskSession>();
-            for (const task of validApiTasks) {
-              taskMap.set(task.id, task);
-            }
+            // Keep local active tasks first to not lose pending stream updates
             for (const task of prevTasks) {
               if (task && task.id && Array.isArray(task.messages) && task.messages.length > 0) {
                 taskMap.set(task.id, task);
               }
             }
-            const merged = Array.from(taskMap.values());
-            return merged;
+            // Merge with API tasks (if task already exists locally, update with API data)
+            for (const task of validApiTasks) {
+              taskMap.set(task.id, task);
+            }
+            return Array.from(taskMap.values());
           });
         }
       }

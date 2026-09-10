@@ -123,10 +123,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  // Filter valid tasks that have actual conversation messages
-  const validTasks = tasks.filter(
-    (t) => t && t.id && Array.isArray(t.messages) && t.messages.length > 0
-  );
+  // Filter valid tasks and strictly deduplicate by id
+  const taskMap = new Map<string, TaskSession>();
+  for (const t of tasks) {
+    if (t && t.id && Array.isArray(t.messages) && t.messages.length > 0) {
+      taskMap.set(t.id, t);
+    }
+  }
+  const validTasks = Array.from(taskMap.values());
   const standaloneTasks = validTasks.filter((t) => !t.projectId);
 
   return (
