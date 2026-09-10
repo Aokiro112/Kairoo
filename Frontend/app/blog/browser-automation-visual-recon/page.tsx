@@ -49,13 +49,6 @@ export default function BrowserAutomationBlogPost() {
           transition={{ duration: 0.4 }}
           className="w-full mb-10 pb-8 border-b border-[#1D1D1B]"
         >
-          <div className="flex flex-wrap items-center gap-2.5 mb-4">
-            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#181818] border border-[#282828] text-[#D0D0CC] font-mono text-[11px] font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-pulse" />
-              Engine Architecture & Release
-            </span>
-          </div>
-
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#F4F4F0] mb-4 leading-tight font-sans">
             Autonomous Browser Exploration & Visual Security Reconnaissance
           </h1>
