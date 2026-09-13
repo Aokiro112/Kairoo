@@ -103,6 +103,15 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     description: 'Comprehensive vulnerability assessment & attack surface mapping',
     provider: 'Groq',
   },
+  {
+    id: 'deepseek-chat',
+    name: 'DeepSeek V3',
+    shortName: 'DeepSeek',
+    badge: 'Paid Provider',
+    badgeColor: 'bg-cyan-950/70 text-cyan-400 border-cyan-500/30',
+    description: 'Deep cybersecurity reasoning & attack surface analysis (2 msgs / 3 days)',
+    provider: 'DeepSeek',
+  },
 ];
 
 interface PromptInputProps {
@@ -131,11 +140,31 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>('llama-3.3-70b-versatile');
+  const [deepseekQuota, setDeepseekQuota] = useState<{
+    limit: number;
+    used: number;
+    remaining: number;
+    resetAt: string | null;
+  } | null>(null);
 
   const [openDropdown, setOpenDropdown] = useState<'plus' | 'mode' | 'target' | 'model' | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchDeepSeekQuota = async () => {
+    try {
+      const res = await fetch('/api/chat/quota');
+      if (res.ok) {
+        const data = await res.json();
+        setDeepseekQuota(data);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchDeepSeekQuota();
+  }, [selectedModel]);
 
   // Sync selectedModel from localStorage on mount & listen to storage events
   useEffect(() => {
@@ -524,16 +553,38 @@ export const PromptInput: React.FC<PromptInputProps> = ({
           {/* Right Actions */}
           <div className="flex items-center gap-3">
             {/* Interactive Model Switcher */}
-            <div className="relative">
+            <div className="relative flex items-center gap-2">
+              {/* DeepSeek remaining quota pill */}
+              {selectedModel === 'deepseek-chat' && (
+                <div
+                  className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono border ${
+                    (deepseekQuota?.remaining ?? 2) === 2
+                      ? 'bg-cyan-950/60 text-cyan-400 border-cyan-500/30'
+                      : (deepseekQuota?.remaining ?? 0) === 1
+                      ? 'bg-amber-950/60 text-amber-400 border-amber-500/30'
+                      : 'bg-red-950/60 text-red-400 border-red-500/30'
+                  }`}
+                >
+                  {(deepseekQuota?.remaining ?? 2) === 2 && 'DeepSeek: 2 messages remaining'}
+                  {(deepseekQuota?.remaining ?? 0) === 1 && 'DeepSeek: 1 message remaining'}
+                  {(deepseekQuota?.remaining ?? 0) <= 0 && 'DeepSeek limit reached'}
+                </div>
+              )}
+
               <button
                 type="button"
-                onClick={() => setOpenDropdown(openDropdown === 'model' ? null : 'model')}
+                onClick={() => {
+                  fetchDeepSeekQuota();
+                  setOpenDropdown(openDropdown === 'model' ? null : 'model');
+                }}
                 className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono text-[#E4E4E0] bg-[#171717] hover:bg-[#222222] border border-[#2B2B2B] hover:border-[#3E3E3E] transition-all shadow-sm group cursor-pointer"
                 title="Switch AI Inference Model"
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    selectedModel === 'v4-flash-0731' ? 'bg-cyan-400' : 'bg-[#B8FF3D]'
+                    selectedModel === 'deepseek-chat'
+                      ? (deepseekQuota?.remaining ?? 2) > 0 ? 'bg-cyan-400' : 'bg-red-400'
+                      : 'bg-[#B8FF3D]'
                   } animate-pulse`}
                 />
                 <span className="font-medium group-hover:text-white transition-colors">
@@ -564,7 +615,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
                               : 'text-[#AAAAAA] hover:bg-[#1C1C1C] hover:text-white border border-transparent'
                           }`}
                         >
-                          <div className="space-y-0.5 pr-2 min-w-0">
+                          <div className="space-y-0.5 pr-2 min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
                               <span className="font-semibold text-xs text-white truncate">{m.name}</span>
                               {m.badge && (
@@ -576,6 +627,23 @@ export const PromptInput: React.FC<PromptInputProps> = ({
                             <div className="text-[11px] text-[#777777] leading-snug line-clamp-2">
                               {m.description}
                             </div>
+                            {m.id === 'deepseek-chat' && (
+                              <div className="pt-0.5">
+                                <span
+                                  className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono border ${
+                                    (deepseekQuota?.remaining ?? 2) === 2
+                                      ? 'text-cyan-400 bg-cyan-950/40 border-cyan-500/20'
+                                      : (deepseekQuota?.remaining ?? 0) === 1
+                                      ? 'text-amber-400 bg-amber-950/40 border-amber-500/20'
+                                      : 'text-red-400 bg-red-950/40 border-red-500/20'
+                                  }`}
+                                >
+                                  {(deepseekQuota?.remaining ?? 2) === 2 && 'DeepSeek: 2 messages remaining'}
+                                  {(deepseekQuota?.remaining ?? 0) === 1 && 'DeepSeek: 1 message remaining'}
+                                  {(deepseekQuota?.remaining ?? 0) <= 0 && 'DeepSeek limit reached'}
+                                </span>
+                              </div>
+                            )}
                           </div>
                           {isSelected && (
                             <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />

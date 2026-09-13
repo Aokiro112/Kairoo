@@ -28,11 +28,24 @@ model TaskSession {
 }
 
 model ChatMessage {
-  id        String      @id @default(cuid())
-  taskId    String
-  task      TaskSession @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  role      String      // "user" | "assistant"
-  content   String?
-  stepsJson String?     // Serialized AssistantStep[] (reasoning blocks, tool pills, etc.)
-  createdAt DateTime    @default(now())
+  id              String      @id @default(cuid())
+  taskId          String
+  task            TaskSession @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  role            String      // "user" | "assistant"
+  content         String?
+  attachmentsJson String?     // Serialized AttachedFile[] (code snippets, scope files, artifacts)
+  stepsJson       String?     // Serialized AssistantStep[] (reasoning blocks, tool pills, etc.)
+  createdAt       DateTime    @default(now())
 }
+
+model UserUsage {
+  id                  String    @id @default(cuid())
+  identifier          String    @unique // email (for account quota), or "deepseek_ip:" + ipHash
+  ipHash              String?   @unique // Hashed client IP (SHA-256 with server-side salt)
+  chatUses            Int       @default(0) // General free chat usage
+  deepseekUses        Int       @default(0) // DeepSeek chat usage in active 3-day window
+  deepseekWindowStart DateTime? // Timestamp when current 3-day window began
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+

@@ -2,6 +2,9 @@ import dotenv from 'dotenv';
 import { SECURITY_AGENT_SYSTEM_PROMPT } from './systemPrompt';
 import { SECURITY_AGENT_TOOLS, executeSecurityTool, validateTargetScope, ToolCall } from './tools';
 import { groqKeyManager } from './groqKeyManager';
+import { runDeepSeekStream, isDeepSeekModel } from './deepseekService';
+
+export { isDeepSeekModel } from './deepseekService';
 
 dotenv.config();
 
@@ -126,7 +129,8 @@ export async function* runSecurityAgentStream(
   messages: Array<{ role: string; content: string }>,
   model: string = 'openai/gpt-oss-120b',
   attachments?: Array<{ id: string; name: string; size: number; content: string; language: string }>,
-  userIdentifier: string = 'anonymous'
+  userIdentifier: string = 'anonymous',
+  options?: { onFirstContentProduced?: () => void }
 ): AsyncGenerator<StreamEvent> {
   const activeModel = resolveModel(model);
 
@@ -207,6 +211,31 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
           `\n--- ATTACHED ARTIFACT: ${att.name} (Language: ${att.language}, Size: ${att.size} bytes) ---\n\`\`\`${att.language}\n${att.content}\n\`\`\`\n`
       )
       .join('\n');
+  }
+
+  // Build complete conversation context
+  const formattedHistory = messages.map((m, idx) => {
+    if (idx === messages.length - 1 && hasAttachments) {
+      return {
+        role: m.role,
+        content: `${m.content || ''}\n\n${attachmentContextText}`,
+      };
+    }
+    return { role: m.role, content: m.content || '' };
+  });
+
+  const conversationHistory: any[] = [
+    { role: 'system', content: SECURITY_AGENT_SYSTEM_PROMPT },
+    ...formattedHistory,
+  ];
+
+  // Route DeepSeek requests directly to DeepSeek service
+  if (isDeepSeekModel(model)) {
+    yield* runDeepSeekStream(conversationHistory, {
+      model,
+      onFirstContentProduced: options?.onFirstContentProduced,
+    });
+    return;
   }
 
   // Fallback autonomous execution if no Groq API keys are loaded
@@ -361,21 +390,6 @@ ${executedTools
       },
     }));
 
-    // Complete conversation context (all past user, assistant, system prompts)
-    const formattedHistory = messages.map((m, idx) => {
-      if (idx === messages.length - 1 && hasAttachments) {
-        return {
-          role: m.role,
-          content: `${m.content || ''}\n\n${attachmentContextText}`,
-        };
-      }
-      return { role: m.role, content: m.content || '' };
-    });
-
-    const conversationHistory: any[] = [
-      { role: 'system', content: SECURITY_AGENT_SYSTEM_PROMPT },
-      ...formattedHistory,
-    ];
 
     let loopCount = 0;
     const maxLoops = 2;

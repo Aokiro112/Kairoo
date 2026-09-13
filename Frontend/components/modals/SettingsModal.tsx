@@ -326,6 +326,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     >
                       <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Recommended • Fast Reasoning)</option>
                       <option value="openai/gpt-oss-120b">GPT-OSS 120B (Groq • Deep Security Synthesis)</option>
+                      <option value="deepseek-chat">DeepSeek V3 (Paid • Deep Security Reasoning • 2 msgs / 3 days)</option>
                     </select>
                   </div>
 

@@ -5,7 +5,7 @@ import type { NextRequest } from 'next/server';
 // 🔧 MAINTENANCE MODE TOGGLE
 // Set to `true` to put the entire site in maintenance mode.
 // Set to `false` to restore normal operation.
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true';
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export function middleware(request: NextRequest) {

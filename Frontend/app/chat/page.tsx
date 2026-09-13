@@ -433,11 +433,46 @@ function ChatWorkspaceContent() {
 
       if (!res.ok || !res.body) {
         let errMessage = 'Failed to start chat stream';
+        let isDeepSeekLimit = false;
         try {
           const errJson = await res.json();
-          if (errJson?.error) errMessage = errJson.error;
+          if (errJson?.error === 'DEEPSEEK_LIMIT_REACHED') {
+            isDeepSeekLimit = true;
+            const resetDate = errJson.resetAt ? new Date(errJson.resetAt) : null;
+            const formattedDate = resetDate
+              ? resetDate.toLocaleDateString(undefined, {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                }) +
+                ' at ' +
+                resetDate.toLocaleTimeString(undefined, {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })
+              : 'in 3 days';
+            errMessage = `Your 2 DeepSeek messages have been used.\n\nAvailable again: **${formattedDate}**`;
+          } else if (errJson?.error) {
+            errMessage = errJson.error;
+          }
         } catch {}
-        throw new Error(errMessage);
+
+        setTasks((prev) =>
+          prev.map((t) => {
+            if (t.id !== currentTaskId) return t;
+            const msgs = [...t.messages];
+            const last = { ...msgs[msgs.length - 1] };
+            if (last.role === 'assistant') {
+              last.content = isDeepSeekLimit
+                ? `🛡️ **DeepSeek Quota Notice**\n\n${errMessage}`
+                : `⚠️ **Limit Reached / Error**: ${errMessage}`;
+              msgs[msgs.length - 1] = last;
+            }
+            return { ...t, messages: msgs };
+          })
+        );
+        setIsStreaming(false);
+        return;
       }
 
       const reader = res.body.getReader();

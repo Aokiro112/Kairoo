@@ -1,54 +1,113 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { prisma } from '../db';
-import { runSecurityAgentStream } from '../agent/engine';
+import { runSecurityAgentStream, isDeepSeekModel } from '../agent/engine';
 import { getClientIp } from '../utils/ip';
+import { hashIp } from '../utils/ipHash';
+import {
+  reserveDeepSeekQuota,
+  releaseDeepSeekReservation,
+  getDeepSeekQuotaStatus,
+} from '../services/deepseekQuotaService';
 import { optionalAuth, AuthenticatedRequest } from '../middleware/auth';
 
 export const chatRouter = Router();
 
+/**
+ * GET /api/chat/quota - Returns current DeepSeek quota status for the caller's IP
+ * Allows frontend to display remaining quota without consuming a request.
+ */
+chatRouter.get('/quota', async (req: Request, res: Response) => {
+  try {
+    const clientIp = getClientIp(req);
+    const ipHash = hashIp(clientIp);
+    const quota = await getDeepSeekQuotaStatus(ipHash);
+
+    res.json({
+      provider: 'deepseek',
+      limit: quota.limit,
+      used: quota.used,
+      remaining: quota.remaining,
+      resetAt: quota.resetAt ? quota.resetAt.toISOString() : null,
+      windowStart: quota.windowStart ? quota.windowStart.toISOString() : null,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve DeepSeek quota status' });
+  }
+});
+
 // POST /api/chat - SSE streaming
 chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { taskId, projectId, messages, model, userMessageText, attachments, userEmail, userId } = req.body;
+
+  // Derive client IP strictly from trusted server-side proxy headers; ignore any client-supplied body IP
+  const clientIp = getClientIp(req);
+  const ipHash = hashIp(clientIp);
+  const isDeepSeek = isDeepSeekModel(model);
+
+  let deepseekQuotaReserved = false;
+
   try {
-    const { taskId, projectId, messages, model, userMessageText, attachments, userEmail, userId } = req.body;
+    // --------------------------------------------------------------------------
+    // 1. Quota Verification & Reservation
+    // --------------------------------------------------------------------------
+    if (isDeepSeek) {
+      // Enforce strict 2-request per 3-day rolling window per IP hash
+      const quota = await reserveDeepSeekQuota(ipHash);
 
-    // Resolve user identifier: account email (from token or payload) > account ID > client IP
-    const accountEmail = (req.user?.email || userEmail || req.body?.user?.email || '').trim().toLowerCase();
-    const accountId = (req.user?.id || userId || req.body?.user?.id || '').trim().toLowerCase();
-    const clientIp = getClientIp(req);
-
-    const userIdentifier = accountEmail || accountId || `ip:${clientIp}`;
-
-    // Strict 2-chat hard limit per account / IP
-    const MAX_FREE_CHATS = 2;
-    let currentUsage = 0;
-    try {
-      const record = await prisma.userUsage.findUnique({
-        where: { identifier: userIdentifier },
-      });
-      if (record) {
-        currentUsage = record.chatUses;
+      if (!quota.allowed) {
+        return res.status(429).json({
+          error: 'DEEPSEEK_LIMIT_REACHED',
+          message: 'You have used your 2 DeepSeek messages.',
+          limit: quota.limit,
+          used: quota.used,
+          resetAt: quota.resetAt ? quota.resetAt.toISOString() : null,
+        });
       }
-    } catch {}
 
-    if (currentUsage >= MAX_FREE_CHATS) {
-      return res.status(429).json({
-        error: `Aapki 2 free chat queries ki limit poori ho chuki hai (${currentUsage}/${MAX_FREE_CHATS} used). Aage use karne ke liye please account upgrade karein.`,
-        limitReached: true,
-        currentUsage,
-        maxUses: MAX_FREE_CHATS,
-      });
+      deepseekQuotaReserved = true;
+    } else {
+      // General Free Tier Quota (Groq) - Preserved existing functionality
+      const accountEmail = (req.user?.email || userEmail || req.body?.user?.email || '').trim().toLowerCase();
+      const accountId = (req.user?.id || userId || req.body?.user?.id || '').trim().toLowerCase();
+      const userIdentifier = accountEmail || accountId || `ip:${clientIp}`;
+
+      const MAX_FREE_CHATS = 2;
+      let currentUsage = 0;
+      try {
+        const record = await prisma.userUsage.findUnique({
+          where: { identifier: userIdentifier },
+        });
+        if (record) {
+          currentUsage = record.chatUses;
+        }
+      } catch {}
+
+      if (currentUsage >= MAX_FREE_CHATS) {
+        return res.status(429).json({
+          error: `Aapki 2 free chat queries ki limit poori ho chuki hai (${currentUsage}/${MAX_FREE_CHATS} used). Aage use karne ke liye please account upgrade karein.`,
+          limitReached: true,
+          currentUsage,
+          maxUses: MAX_FREE_CHATS,
+        });
+      }
+
+      // Increment usage counter in persistent database for general free quota
+      try {
+        await prisma.userUsage.upsert({
+          where: { identifier: userIdentifier },
+          update: { chatUses: { increment: 1 } },
+          create: { identifier: userIdentifier, chatUses: 1 },
+        });
+      } catch {}
     }
 
-    // Increment usage counter in persistent database
-    try {
-      await prisma.userUsage.upsert({
-        where: { identifier: userIdentifier },
-        update: { chatUses: { increment: 1 } },
-        create: { identifier: userIdentifier, chatUses: 1 },
-      });
-    } catch {}
-
+    // --------------------------------------------------------------------------
+    // 2. Input Validation
+    // --------------------------------------------------------------------------
     if ((!userMessageText || typeof userMessageText !== 'string') && (!attachments || !attachments.length)) {
+      if (deepseekQuotaReserved) {
+        await releaseDeepSeekReservation(ipHash).catch(() => {});
+      }
       return res.status(400).json({ error: 'userMessageText or attachments required' });
     }
 
@@ -57,7 +116,9 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
     const firstLine = effectiveText.split('\n')[0].replace(/^https?:\/\//, '').slice(0, 36);
     const sessionTitle = firstLine ? firstLine.charAt(0).toUpperCase() + firstLine.slice(1) : 'Security Audit';
 
-    // 1. Ensure TaskSession in DB
+    // --------------------------------------------------------------------------
+    // 3. Ensure TaskSession in DB
+    // --------------------------------------------------------------------------
     let session = await prisma.taskSession.findUnique({
       where: { id: currentTaskId },
     });
@@ -72,7 +133,9 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
       });
     }
 
-    // 2. Save User Message in DB
+    // --------------------------------------------------------------------------
+    // 4. Save User Message in DB
+    // --------------------------------------------------------------------------
     await prisma.chatMessage.create({
       data: {
         id: `msg-${Date.now()}`,
@@ -83,34 +146,47 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
       },
     });
 
-    // 3. Set SSE Headers
+    // --------------------------------------------------------------------------
+    // 5. Initialize SSE Stream Headers
+    // --------------------------------------------------------------------------
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders?.();
 
-    // Send Meta
+    // Emit initial metadata event
     res.write(
       `data: ${JSON.stringify({
         type: 'meta',
         taskId: currentTaskId,
         title: session.title,
         projectId: session.projectId,
+        provider: isDeepSeek ? 'deepseek' : 'groq',
       })}\n\n`
     );
 
     let accumulatedContent = '';
     const accumulatedSteps: any[] = [];
+    let hasProducedUsableContent = false;
 
+    // --------------------------------------------------------------------------
+    // 6. Execute ReAct Security Agent Stream
+    // --------------------------------------------------------------------------
     const agentStream = runSecurityAgentStream(
       messages || [{ role: 'user', content: userMessageText || '' }],
       model,
       attachments,
-      userIdentifier
+      isDeepSeek ? ipHash : (req.user?.email || `ip:${clientIp}`),
+      {
+        onFirstContentProduced: () => {
+          hasProducedUsableContent = true;
+        },
+      }
     );
 
     for await (const event of agentStream) {
       if (event.type === 'reasoning' || event.type === 'tool_group') {
+        hasProducedUsableContent = true;
         const stepId = event.data?.id;
         const existingIdx = accumulatedSteps.findIndex((s) => s.id === stepId);
         if (existingIdx >= 0) {
@@ -119,12 +195,15 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
           accumulatedSteps.push(event.data);
         }
       } else if (event.type === 'content_chunk') {
+        hasProducedUsableContent = true;
         accumulatedContent += event.data;
       }
       res.write(`data: ${JSON.stringify(event)}\n\n`);
     }
 
-    // 4. Save Finalized Assistant Message in DB
+    // --------------------------------------------------------------------------
+    // 7. Save Finalized Assistant Message in DB
+    // --------------------------------------------------------------------------
     const assistantMsgId = `msg-ai-${Date.now()}`;
     await prisma.chatMessage.create({
       data: {
@@ -144,10 +223,17 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
     );
     res.end();
   } catch (err: any) {
+    // If DeepSeek was reserved and failed before generating a usable response, release reservation
+    if (deepseekQuotaReserved) {
+      await releaseDeepSeekReservation(ipHash).catch((relErr) => {
+        console.error('Failed to release DeepSeek quota on error:', relErr);
+      });
+    }
+
     if (!res.headersSent) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: err.message || 'Internal server error during chat processing' });
     } else {
-      res.write(`data: ${JSON.stringify({ type: 'error', data: err.message })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: 'error', data: err.message || 'An error occurred during generation' })}\n\n`);
       res.end();
     }
   }
