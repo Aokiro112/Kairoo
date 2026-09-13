@@ -392,7 +392,7 @@ ${executedTools
 
 
     let loopCount = 0;
-    const maxLoops = 2;
+    const maxLoops = 3;
     let finalReportGenerated = false;
     let executedAnyTools = false;
     const thinkFilter = createThinkFilter();

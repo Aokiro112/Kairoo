@@ -123,7 +123,175 @@ function sanitizeToolResultForLLM(result: any): string {
 }
 
 /**
+ * Performs a single streaming DeepSeek API call, yielding events to the caller.
+ * Returns the accumulated text content and parsed tool calls from the response.
+ *
+ * Handles SSE buffering correctly: network chunks are buffered until complete
+ * SSE events (terminated by newline) can be extracted and parsed.
+ */
+async function* streamDeepSeekCall(
+  endpoint: string,
+  apiKey: string,
+  model: string,
+  messages: any[],
+  tools: any[] | undefined,
+  maxTokens: number,
+  thinkFilter: (chunk: string) => string,
+  shouldStreamContent: boolean,
+  markContentProduced: () => void,
+): AsyncGenerator<DeepSeekStreamEvent, { textContent: string; toolCalls: Array<{ id: string; name: string; arguments: string }> }> {
+  const body: Record<string, any> = {
+    model,
+    messages,
+    temperature: 0.2,
+    max_tokens: maxTokens,
+    stream: true,
+  };
+
+  // Only include tools when provided (omit for final synthesis calls)
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    body.tool_choice = 'auto';
+  }
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'Accept': 'text/event-stream',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok || !response.body) {
+    let errorMessage = `HTTP ${response.status} ${response.statusText}`;
+    try {
+      const errorJson = (await response.json()) as any;
+      if (errorJson?.error?.message) {
+        errorMessage = errorJson.error.message;
+      }
+    } catch {}
+    throw new Error(`DeepSeek API error: ${errorMessage}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const toolCallsMap: Record<number, { id: string; name: string; arguments: string }> = {};
+  let textContent = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    // SSE events are delimited by newlines. Split on newline and keep the
+    // last incomplete fragment in the buffer for the next iteration.
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith(':')) continue; // SSE comments / heartbeats
+      if (line === 'data: [DONE]') continue;
+
+      if (line.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          const delta = data.choices?.[0]?.delta;
+          if (!delta) continue;
+
+          // 1. DeepSeek R1 / Reasoner reasoning content
+          if (delta.reasoning_content) {
+            markContentProduced();
+            yield {
+              type: 'reasoning',
+              data: {
+                id: `step-deepseek-reasoning-${Date.now()}`,
+                type: 'reasoning',
+                text: delta.reasoning_content,
+              },
+            };
+          }
+
+          // 2. Tool calls delta (streamed incrementally by the API)
+          if (delta.tool_calls) {
+            markContentProduced();
+            for (const tc of delta.tool_calls) {
+              const idx = tc.index ?? 0;
+              if (!toolCallsMap[idx]) {
+                toolCallsMap[idx] = {
+                  id: tc.id || `call_deepseek_${Date.now()}_${idx}`,
+                  name: tc.function?.name || '',
+                  arguments: '',
+                };
+              }
+              if (tc.id) toolCallsMap[idx].id = tc.id;
+              if (tc.function?.name) toolCallsMap[idx].name = tc.function.name;
+              if (tc.function?.arguments) toolCallsMap[idx].arguments += tc.function.arguments;
+            }
+          }
+
+          // 3. Regular content chunks
+          if (delta.content) {
+            markContentProduced();
+            textContent += delta.content;
+
+            if (shouldStreamContent) {
+              const clean = thinkFilter(delta.content);
+              if (clean) {
+                yield { type: 'content_chunk', data: clean };
+              }
+            }
+          }
+        } catch {
+          // Ignore malformed SSE lines
+        }
+      }
+    }
+  }
+
+  // Flush any remaining buffer content after the stream ends
+  if (buffer.trim()) {
+    const line = buffer.trim();
+    if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+      try {
+        const data = JSON.parse(line.slice(6));
+        const delta = data.choices?.[0]?.delta;
+        if (delta?.content) {
+          markContentProduced();
+          textContent += delta.content;
+          if (shouldStreamContent) {
+            const clean = thinkFilter(delta.content);
+            if (clean) {
+              yield { type: 'content_chunk', data: clean };
+            }
+          }
+        }
+      } catch {}
+    }
+  }
+
+  return {
+    textContent,
+    toolCalls: Object.values(toolCallsMap),
+  };
+}
+
+/**
  * Executes a streaming DeepSeek chat completion loop with tool calling and reasoning support.
+ *
+ * Architecture (matching the Groq agent engine pattern):
+ *   1. Tool-calling loop: up to maxLoops iterations, each calling the model with tools
+ *      available. When the model returns tool calls, tools are executed, results appended
+ *      to conversation, and the loop continues. When the model returns text without tool
+ *      calls, the text is streamed as the final answer and the loop exits.
+ *   2. Final synthesis step: If tools were executed but the loop ended due to maxLoops
+ *      (not because the model chose to produce a text answer), an explicit synthesis
+ *      prompt is injected and the model is called WITHOUT tools to generate the final
+ *      security assessment report.
  *
  * Calls `onFirstContentProduced` as soon as valid tokens or tool calls arrive, indicating that
  * the DeepSeek request succeeded and quota should not be rolled back.
@@ -157,11 +325,9 @@ export async function* runDeepSeekStream(
     },
   }));
 
-  const thinkFilter = createThinkFilter();
-  let loopCount = 0;
-  const maxLoops = 2;
   let hasProducedUsableContent = false;
   let executedAnyTools = false;
+  let finalTextGenerated = false;
 
   const markContentProduced = () => {
     if (!hasProducedUsableContent) {
@@ -172,120 +338,52 @@ export async function* runDeepSeekStream(
     }
   };
 
+  // --------------------------------------------------------------------------
+  // Phase 1: Tool-calling ReAct loop (up to 3 iterations)
+  // --------------------------------------------------------------------------
+  let loopCount = 0;
+  const maxLoops = 3;
+
   while (loopCount < maxLoops) {
     loopCount++;
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'Accept': 'text/event-stream',
-      },
-      body: JSON.stringify({
-        model: activeModel,
-        messages: conversationHistory,
-        tools: deepseekTools,
-        tool_choice: 'auto',
-        temperature: 0.2,
-        max_tokens: 4096,
-        stream: true,
-      }),
-    });
+    const thinkFilter = createThinkFilter();
 
-    if (!response.ok || !response.body) {
-      let errorMessage = `HTTP ${response.status} ${response.statusText}`;
-      try {
-        const errorJson = (await response.json()) as any;
-        if (errorJson?.error?.message) {
-          errorMessage = errorJson.error.message;
-        }
-      } catch {}
-      throw new Error(`DeepSeek API error: ${errorMessage}`);
-    }
+    // Stream content directly only if we haven't executed tools yet (clean conversational response).
+    // If tools have been executed, the model's intermediate text is internal reasoning, not the final answer.
+    const shouldStreamContent = !executedAnyTools;
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    const toolCallsMap: Record<number, { id: string; name: string; arguments: string }> = {};
-    let textContent = '';
+    const stream = streamDeepSeekCall(
+      endpoint,
+      apiKey,
+      activeModel,
+      conversationHistory,
+      deepseekTools,
+      4096,
+      thinkFilter,
+      shouldStreamContent,
+      markContentProduced,
+    );
 
+    // Consume all yielded events from the streaming call
+    let streamResult: { textContent: string; toolCalls: Array<{ id: string; name: string; arguments: string }> };
     while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const rawLine of lines) {
-        const line = rawLine.trim();
-        if (!line || line.startsWith(':')) continue; // comments / heartbeats
-        if (line === 'data: [DONE]') continue;
-
-        if (line.startsWith('data: ')) {
-          try {
-            const data = JSON.parse(line.slice(6));
-            const delta = data.choices?.[0]?.delta;
-            if (!delta) continue;
-
-            // 1. DeepSeek R1 / Reasoner reasoning content
-            if (delta.reasoning_content) {
-              markContentProduced();
-              yield {
-                type: 'reasoning',
-                data: {
-                  id: `step-deepseek-reasoning-${Date.now()}`,
-                  type: 'reasoning',
-                  text: delta.reasoning_content,
-                },
-              };
-            }
-
-            // 2. Tool calls delta
-            if (delta.tool_calls) {
-              markContentProduced();
-              for (const tc of delta.tool_calls) {
-                const idx = tc.index ?? 0;
-                if (!toolCallsMap[idx]) {
-                  toolCallsMap[idx] = {
-                    id: tc.id || `call_deepseek_${Date.now()}_${idx}`,
-                    name: tc.function?.name || '',
-                    arguments: '',
-                  };
-                }
-                if (tc.id) toolCallsMap[idx].id = tc.id;
-                if (tc.function?.name) toolCallsMap[idx].name = tc.function.name;
-                if (tc.function?.arguments) toolCallsMap[idx].arguments += tc.function.arguments;
-              }
-            }
-
-            // 3. Regular content chunks
-            if (delta.content) {
-              markContentProduced();
-              textContent += delta.content;
-
-              if (!executedAnyTools && Object.keys(toolCallsMap).length === 0) {
-                const clean = thinkFilter(delta.content);
-                if (clean) {
-                  yield { type: 'content_chunk', data: clean };
-                }
-              }
-            }
-          } catch {
-            // Ignore malformed SSE lines
-          }
-        }
+      const iter = await stream.next();
+      if (iter.done) {
+        streamResult = iter.value;
+        break;
       }
+      yield iter.value;
     }
 
-    const toolCallsArray = Object.values(toolCallsMap);
+    const { textContent, toolCalls: toolCallsArray } = streamResult;
 
     if (toolCallsArray.length > 0) {
+      // Model decided to call tools — execute them
       executedAnyTools = true;
       markContentProduced();
 
-      // Record assistant tool intent
+      // Record assistant tool call intent in conversation history
       conversationHistory.push({
         role: 'assistant',
         content: textContent || null,
@@ -299,14 +397,14 @@ export async function* runDeepSeekStream(
         })),
       });
 
-      const completedToolCalls: ToolCall[] = [];
-
+      // Execute all requested security tools
       for (const tc of toolCallsArray) {
         let args: any = {};
         try {
           args = JSON.parse(tc.arguments || '{}');
         } catch {}
 
+        // Emit running status
         yield {
           type: 'tool_group',
           data: {
@@ -324,8 +422,8 @@ export async function* runDeepSeekStream(
         };
 
         const result = await executeSecurityTool(tc.name, args);
-        completedToolCalls.push(result.toolCall);
 
+        // Emit completed status
         yield {
           type: 'tool_group',
           data: {
@@ -335,6 +433,7 @@ export async function* runDeepSeekStream(
           },
         };
 
+        // Add tool result to conversation history for the model's next iteration
         conversationHistory.push({
           role: 'tool',
           tool_call_id: tc.id,
@@ -343,10 +442,50 @@ export async function* runDeepSeekStream(
         });
       }
 
-      // Loop continues to generate the final synthesized assessment
+      // Loop continues — the model will see the tool results and decide next action
     } else {
-      // No tool calls produced: loop finished
+      // Model produced text without calling tools — this is the final answer
+      if (shouldStreamContent && textContent) {
+        finalTextGenerated = true;
+      }
       break;
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Phase 2: Explicit Final Synthesis (if tools were executed but no final text was produced)
+  //
+  // This matches the Groq agent engine pattern (engine.ts lines 531-565):
+  // After all tools complete, inject a synthesis prompt and call the model
+  // WITHOUT tools to force a complete security assessment report.
+  // --------------------------------------------------------------------------
+  if (executedAnyTools && !finalTextGenerated) {
+    conversationHistory.push({
+      role: 'user',
+      content:
+        'All diagnostic reconnaissance and security evaluation tools have completed execution. Based on all the findings gathered above, present the complete, exhaustive Technical Security Audit Report in markdown format.\n\nStructure:\n# 🛡️ Executive Security Summary (Target, Scope, Overall Risk Level)\n## 🎯 Attack Surface & Discovery Overview\n## 🚨 Vulnerability Matrix Table (| ID | Severity | Endpoint / Component | Finding & Impact | Remediation Summary |)\n## 🔬 In-Depth Technical Findings & Evidence\n## 🛠️ Prioritized Remediation Roadmap (Immediate P0, Medium-term P1, Long-term P2)',
+    });
+
+    const synthesisThinkFilter = createThinkFilter();
+
+    // Call the model WITHOUT tools to force text generation (not another tool loop)
+    const synthesisStream = streamDeepSeekCall(
+      endpoint,
+      apiKey,
+      activeModel,
+      conversationHistory,
+      undefined, // No tools — forces text-only response
+      8192, // Higher token limit for comprehensive reports
+      synthesisThinkFilter,
+      true, // Stream all content to the user
+      markContentProduced,
+    );
+
+    // Consume all events from the synthesis stream
+    while (true) {
+      const iter = await synthesisStream.next();
+      if (iter.done) break;
+      yield iter.value;
     }
   }
 

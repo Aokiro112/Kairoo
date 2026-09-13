@@ -45,6 +45,7 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
   const isDeepSeek = isDeepSeekModel(model);
 
   let deepseekQuotaReserved = false;
+  let hasProducedUsableContent = false;
 
   try {
     // --------------------------------------------------------------------------
@@ -167,7 +168,6 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
 
     let accumulatedContent = '';
     const accumulatedSteps: any[] = [];
-    let hasProducedUsableContent = false;
 
     // --------------------------------------------------------------------------
     // 6. Execute ReAct Security Agent Stream
@@ -223,8 +223,10 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
     );
     res.end();
   } catch (err: any) {
-    // If DeepSeek was reserved and failed before generating a usable response, release reservation
-    if (deepseekQuotaReserved) {
+    // Only release reserved DeepSeek quota if no usable content was actually produced.
+    // If content was already generated and streamed, the quota must remain consumed
+    // even if a downstream error (DB save, client disconnect) occurs afterward.
+    if (deepseekQuotaReserved && !hasProducedUsableContent) {
       await releaseDeepSeekReservation(ipHash).catch((relErr) => {
         console.error('Failed to release DeepSeek quota on error:', relErr);
       });
