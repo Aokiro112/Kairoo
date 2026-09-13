@@ -5,7 +5,6 @@ import { getClientIp } from '../utils/ip';
 import { hashIp } from '../utils/ipHash';
 import {
   reserveDeepSeekQuota,
-  releaseDeepSeekReservation,
   getDeepSeekQuotaStatus,
 } from '../services/deepseekQuotaService';
 import { optionalAuth, AuthenticatedRequest } from '../middleware/auth';
@@ -24,6 +23,7 @@ chatRouter.get('/quota', async (req: Request, res: Response) => {
 
     res.json({
       provider: 'deepseek',
+      allowed: quota.allowed,
       limit: quota.limit,
       used: quota.used,
       remaining: quota.remaining,
@@ -39,23 +39,35 @@ chatRouter.get('/quota', async (req: Request, res: Response) => {
 chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { taskId, projectId, messages, model, userMessageText, attachments, userEmail, userId } = req.body;
 
+  // --------------------------------------------------------------------------
+  // 1. Input Validation (Run before touching any quota or DB session)
+  // --------------------------------------------------------------------------
+  if ((!userMessageText || typeof userMessageText !== 'string') && (!attachments || !attachments.length)) {
+    return res.status(400).json({ error: 'userMessageText or attachments required' });
+  }
+
   // Derive client IP strictly from trusted server-side proxy headers; ignore any client-supplied body IP
   const clientIp = getClientIp(req);
   const ipHash = hashIp(clientIp);
   const isDeepSeek = isDeepSeekModel(model);
 
-  let deepseekQuotaReserved = false;
-  let hasProducedUsableContent = false;
-
   try {
     // --------------------------------------------------------------------------
-    // 1. Quota Verification & Reservation
+    // 2. Strict Quota Enforcement (MUST run BEFORE any paid DeepSeek API call)
     // --------------------------------------------------------------------------
     if (isDeepSeek) {
-      // Enforce strict 2-request per 3-day rolling window per IP hash
+      // Enforce strict 2-request per 3-day rolling window per IP hash.
+      // Atomically checks and increments quota in database transaction.
       const quota = await reserveDeepSeekQuota(ipHash);
 
+      console.log(
+        `[DeepSeek Quota] ipHash="${ipHash.slice(0, 12)}…" allowed=${quota.allowed} ` +
+        `used=${quota.used}/${quota.limit} remaining=${quota.remaining} ` +
+        `resetAt=${quota.resetAt ? quota.resetAt.toISOString() : 'none'}`
+      );
+
       if (!quota.allowed) {
+        console.log(`[DeepSeek Quota] REJECTED (429) — IP limit reached. DeepSeek will NOT be called.`);
         return res.status(429).json({
           error: 'DEEPSEEK_LIMIT_REACHED',
           message: 'You have used your 2 DeepSeek messages.',
@@ -65,7 +77,7 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
         });
       }
 
-      deepseekQuotaReserved = true;
+      console.log(`[DeepSeek Quota] ALLOWED (${quota.used}/${quota.limit}) — proceeding to agent execution.`);
     } else {
       // General Free Tier Quota (Groq) - Preserved existing functionality
       const accountEmail = (req.user?.email || userEmail || req.body?.user?.email || '').trim().toLowerCase();
@@ -100,16 +112,6 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
           create: { identifier: userIdentifier, chatUses: 1 },
         });
       } catch {}
-    }
-
-    // --------------------------------------------------------------------------
-    // 2. Input Validation
-    // --------------------------------------------------------------------------
-    if ((!userMessageText || typeof userMessageText !== 'string') && (!attachments || !attachments.length)) {
-      if (deepseekQuotaReserved) {
-        await releaseDeepSeekReservation(ipHash).catch(() => {});
-      }
-      return res.status(400).json({ error: 'userMessageText or attachments required' });
     }
 
     const currentTaskId = taskId || `task-${Date.now()}`;
@@ -176,17 +178,11 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
       messages || [{ role: 'user', content: userMessageText || '' }],
       model,
       attachments,
-      isDeepSeek ? ipHash : (req.user?.email || `ip:${clientIp}`),
-      {
-        onFirstContentProduced: () => {
-          hasProducedUsableContent = true;
-        },
-      }
+      isDeepSeek ? ipHash : (req.user?.email || `ip:${clientIp}`)
     );
 
     for await (const event of agentStream) {
       if (event.type === 'reasoning' || event.type === 'tool_group') {
-        hasProducedUsableContent = true;
         const stepId = event.data?.id;
         const existingIdx = accumulatedSteps.findIndex((s) => s.id === stepId);
         if (existingIdx >= 0) {
@@ -195,7 +191,6 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
           accumulatedSteps.push(event.data);
         }
       } else if (event.type === 'content_chunk') {
-        hasProducedUsableContent = true;
         accumulatedContent += event.data;
       }
       res.write(`data: ${JSON.stringify(event)}\n\n`);
@@ -205,6 +200,19 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
     // 7. Save Finalized Assistant Message in DB
     // --------------------------------------------------------------------------
     const assistantMsgId = `msg-ai-${Date.now()}`;
+    const sessionExists = await prisma.taskSession.findUnique({
+      where: { id: currentTaskId },
+    });
+    if (!sessionExists) {
+      await prisma.taskSession.create({
+        data: {
+          id: currentTaskId,
+          title: sessionTitle,
+          projectId: projectId || null,
+        },
+      });
+    }
+
     await prisma.chatMessage.create({
       data: {
         id: assistantMsgId,
@@ -223,15 +231,6 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
     );
     res.end();
   } catch (err: any) {
-    // Only release reserved DeepSeek quota if no usable content was actually produced.
-    // If content was already generated and streamed, the quota must remain consumed
-    // even if a downstream error (DB save, client disconnect) occurs afterward.
-    if (deepseekQuotaReserved && !hasProducedUsableContent) {
-      await releaseDeepSeekReservation(ipHash).catch((relErr) => {
-        console.error('Failed to release DeepSeek quota on error:', relErr);
-      });
-    }
-
     if (!res.headersSent) {
       res.status(500).json({ error: err.message || 'Internal server error during chat processing' });
     } else {

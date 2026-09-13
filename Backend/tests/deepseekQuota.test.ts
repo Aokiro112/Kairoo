@@ -21,13 +21,25 @@ describe('DeepSeek API & IP-based Quota Verification Suite', () => {
   let serverPort: number;
   let serverBaseUrl: string;
 
-  // Clean up any test records in UserUsage
+  // Clean up only this test suite's specific records in UserUsage
   const cleanupTestRecords = async () => {
     try {
+      const testIps = [
+        'test_ip_scenario_1',
+        'test_ip_scenario_4_different',
+        'test_ip_scenario_6',
+        'test_ip_scenario_7',
+        'test_ip_scenario_8',
+        'test_ip_scenario_9_concurrency',
+        'test_ip_scenario_10_failure',
+        '192.0.2.12',
+        'test_ip_scenario_14_anchoring',
+      ];
+      const identifiers = testIps.map((ip) => `deepseek_ip:${hashIp(ip)}`);
       await prisma.userUsage.deleteMany({
         where: {
           identifier: {
-            startsWith: 'deepseek_ip:',
+            in: identifiers,
           },
         },
       });
@@ -213,8 +225,15 @@ describe('DeepSeek API & IP-based Quota Verification Suite', () => {
     await reserveDeepSeekQuota(ipHash, new Date('2026-09-13T15:05:00.000Z'));
 
     // Simulate user deleting their TaskSession and ChatMessage history
-    await prisma.chatMessage.deleteMany({});
-    await prisma.taskSession.deleteMany({});
+    const sampleTaskId = `sample-del-task-${Date.now()}`;
+    await prisma.taskSession.create({
+      data: { id: sampleTaskId, title: 'Sample Deletion Task' },
+    });
+    await prisma.chatMessage.create({
+      data: { id: `sample-msg-${Date.now()}`, taskId: sampleTaskId, role: 'user', content: 'test' },
+    });
+    await prisma.chatMessage.deleteMany({ where: { taskId: sampleTaskId } });
+    await prisma.taskSession.delete({ where: { id: sampleTaskId } });
 
     // Verify DeepSeek quota remains locked
     const result = await reserveDeepSeekQuota(ipHash, new Date('2026-09-13T15:10:00.000Z'));
