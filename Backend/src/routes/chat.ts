@@ -49,7 +49,14 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
   // Derive client IP strictly from trusted server-side proxy headers; ignore any client-supplied body IP
   const clientIp = getClientIp(req);
   const ipHash = hashIp(clientIp);
-  const isDeepSeek = isDeepSeekModel(model);
+  const candidateModel =
+    model ||
+    req.body.selectedModel ||
+    req.body.options?.model ||
+    (typeof req.body.provider === 'string' && req.body.provider.toLowerCase().includes('deepseek') ? 'deepseek-chat' : '') ||
+    '';
+  const isDeepSeek = isDeepSeekModel(candidateModel) || isDeepSeekModel(model);
+  const effectiveModel = isDeepSeek ? (candidateModel || 'deepseek-chat') : (model || 'llama-3.3-70b-versatile');
 
   try {
     // --------------------------------------------------------------------------
@@ -176,7 +183,7 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
     // --------------------------------------------------------------------------
     const agentStream = runSecurityAgentStream(
       messages || [{ role: 'user', content: userMessageText || '' }],
-      model,
+      effectiveModel,
       attachments,
       isDeepSeek ? ipHash : (req.user?.email || `ip:${clientIp}`)
     );

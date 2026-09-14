@@ -8,21 +8,37 @@ function extractFirstIp(headerVal: string | string[] | undefined): string | null
   const raw = Array.isArray(headerVal) ? headerVal[0] : headerVal;
   if (!raw || typeof raw !== 'string') return null;
 
-  // Split comma-delimited proxy chains and pick the first (client) address
-  const first = raw.split(',')[0].trim();
-  return first || null;
+  // Split comma-delimited proxy chains and pick the first valid client address
+  const parts = raw.split(',').map((p) => p.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+  for (const part of parts) {
+    const lower = part.toLowerCase();
+    if (lower !== 'unknown' && lower !== 'null' && lower !== 'undefined') {
+      return part;
+    }
+  }
+  return parts[0] || null;
 }
 
 /**
- * Strips port numbers and IPv6 wrapper brackets from an IP string.
+ * Strips port numbers, IPv6 scope/zone identifiers, and brackets from an IP string.
  * Examples:
  *   "203.0.113.195:48231" -> "203.0.113.195"
  *   "[2001:db8::1]:8080"   -> "2001:db8::1"
  *   "::ffff:192.168.1.1"   -> "192.168.1.1"
+ *   "fe80::1%eth0"         -> "fe80::1"
  */
-function cleanIpString(rawIp: string): string {
-  if (!rawIp) return '127.0.0.1';
-  let clean = rawIp.trim().toLowerCase();
+export function cleanIpString(rawIp: string): string {
+  if (!rawIp || typeof rawIp !== 'string') return '127.0.0.1';
+  let clean = rawIp.trim().toLowerCase().replace(/^["']|["']$/g, '');
+
+  if (clean === 'unknown' || clean === 'null' || clean === 'undefined') {
+    return '127.0.0.1';
+  }
+
+  // Strip IPv6 zone ID / interface scope (%eth0, %12)
+  if (clean.includes('%')) {
+    clean = clean.split('%')[0];
+  }
 
   // Strip port from bracketed IPv6: [2001:db8::1]:8080 -> 2001:db8::1
   if (clean.startsWith('[')) {
@@ -43,13 +59,15 @@ function cleanIpString(rawIp: string): string {
     clean = clean.split(':')[0];
   }
 
-  // Normalize loopbacks
-  if (clean === '::1' || clean === 'localhost') {
+  // Standardize all loopback representations to '127.0.0.1'
+  if (clean === '::1' || clean === 'localhost' || clean === '0.0.0.0' || clean === '::' || clean === '127.0.0.1') {
     clean = '127.0.0.1';
   }
 
   return clean || '127.0.0.1';
 }
+
+export const normalizeIp = cleanIpString;
 
 /**
  * Server-side client IP extractor.

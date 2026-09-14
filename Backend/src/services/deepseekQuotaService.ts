@@ -15,28 +15,28 @@ export interface DeepSeekQuotaStatus {
 }
 
 /**
- * Keyed in-memory lock queue to serialize concurrent requests for the same IP hash
- * within the Node.js event loop, preventing race conditions before database transactions.
+ * Strict chained mutex to serialize concurrent requests for the exact same IP hash
+ * within the Node.js event loop, eliminating race conditions before database transactions.
  */
 class IpMutex {
   private activeLocks = new Map<string, Promise<void>>();
 
   async runExclusive<T>(key: string, fn: () => Promise<T>): Promise<T> {
-    while (this.activeLocks.has(key)) {
-      await this.activeLocks.get(key);
-    }
-
+    const prev = this.activeLocks.get(key) || Promise.resolve();
     let release: () => void = () => {};
-    const lockPromise = new Promise<void>((resolve) => {
+    const current = new Promise<void>((resolve) => {
       release = resolve;
     });
-    this.activeLocks.set(key, lockPromise);
+    this.activeLocks.set(key, current);
 
     try {
+      await prev;
       return await fn();
     } finally {
-      this.activeLocks.delete(key);
       release();
+      if (this.activeLocks.get(key) === current) {
+        this.activeLocks.delete(key);
+      }
     }
   }
 }
@@ -67,6 +67,7 @@ export async function getDeepSeekQuotaStatus(
         { identifier },
       ],
     },
+    orderBy: { updatedAt: 'desc' },
   });
 
   if (!record || !record.deepseekWindowStart) {
@@ -80,7 +81,18 @@ export async function getDeepSeekQuotaStatus(
     };
   }
 
-  const windowStartTime = record.deepseekWindowStart.getTime();
+  const windowStartTime = new Date(record.deepseekWindowStart).getTime();
+  if (isNaN(windowStartTime)) {
+    return {
+      allowed: true,
+      limit: MAX_DEEPSEEK_REQUESTS,
+      used: 0,
+      remaining: MAX_DEEPSEEK_REQUESTS,
+      resetAt: null,
+      windowStart: null,
+    };
+  }
+
   const unlockTime = windowStartTime + DEEPSEEK_WINDOW_MS;
   const isExpired = now.getTime() >= unlockTime;
 
@@ -107,7 +119,7 @@ export async function getDeepSeekQuotaStatus(
     used,
     remaining,
     resetAt,
-    windowStart: record.deepseekWindowStart,
+    windowStart: new Date(windowStartTime),
     reason: allowed ? undefined : 'DEEPSEEK_LIMIT_REACHED',
   };
 }
@@ -116,7 +128,7 @@ export async function getDeepSeekQuotaStatus(
  * Atomically checks and reserves a DeepSeek quota slot for the IP hash.
  *
  * Concurrency Safety:
- * 1. In-process mutex serializes concurrent requests for the exact same IP hash.
+ * 1. Chained in-process mutex serializes concurrent requests for the exact same IP hash.
  * 2. Prisma transaction ensures atomic reads and writes in the persistent SQLite database.
  * 3. If window expired, resets usage to 1 and anchors windowStart to `now`.
  * 4. If window active and used < 2, increments usage while keeping original windowStart intact.
@@ -137,6 +149,7 @@ export async function reserveDeepSeekQuota(
             { identifier },
           ],
         },
+        orderBy: { updatedAt: 'desc' },
       });
 
       // Case 1: First request ever from this IP
@@ -163,7 +176,8 @@ export async function reserveDeepSeekQuota(
 
       // Case 2: Record exists - check if window has expired or was not yet started
       const windowStart = existing.deepseekWindowStart;
-      const isExpired = !windowStart || now.getTime() >= windowStart.getTime() + DEEPSEEK_WINDOW_MS;
+      const windowStartTime = windowStart ? new Date(windowStart).getTime() : NaN;
+      const isExpired = !windowStart || isNaN(windowStartTime) || now.getTime() >= windowStartTime + DEEPSEEK_WINDOW_MS;
 
       if (isExpired) {
         // Automatically start fresh 3-day window anchored to this request
@@ -171,6 +185,7 @@ export async function reserveDeepSeekQuota(
         await tx.userUsage.update({
           where: { id: existing.id },
           data: {
+            identifier,
             ipHash: existing.ipHash || ipHash,
             deepseekUses: 1,
             deepseekWindowStart: now,
@@ -188,7 +203,7 @@ export async function reserveDeepSeekQuota(
       }
 
       // Case 3: Window is currently active
-      const unlockTime = windowStart.getTime() + DEEPSEEK_WINDOW_MS;
+      const unlockTime = windowStartTime + DEEPSEEK_WINDOW_MS;
       const resetAt = new Date(unlockTime);
 
       if (existing.deepseekUses >= MAX_DEEPSEEK_REQUESTS) {
@@ -199,7 +214,7 @@ export async function reserveDeepSeekQuota(
           used: Math.min(existing.deepseekUses, MAX_DEEPSEEK_REQUESTS),
           remaining: 0,
           resetAt,
-          windowStart,
+          windowStart: new Date(windowStartTime),
           reason: 'DEEPSEEK_LIMIT_REACHED',
         };
       }
@@ -208,6 +223,7 @@ export async function reserveDeepSeekQuota(
       const updated = await tx.userUsage.update({
         where: { id: existing.id },
         data: {
+          identifier,
           ipHash: existing.ipHash || ipHash,
           deepseekUses: { increment: 1 },
         },
@@ -222,7 +238,7 @@ export async function reserveDeepSeekQuota(
         used: newUsed,
         remaining,
         resetAt,
-        windowStart,
+        windowStart: new Date(windowStartTime),
       };
     });
   });
