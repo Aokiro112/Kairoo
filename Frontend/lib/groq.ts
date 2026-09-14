@@ -15,11 +15,6 @@ export const AVAILABLE_MODELS = [
     description: 'Fastest security reasoning, tool-calling & exploit script generator',
   },
   {
-    id: 'openai/gpt-oss-120b',
-    name: 'GPT-OSS 120B',
-    description: 'Deep multi-step threat modeling and vulnerability architecture analysis',
-  },
-  {
     id: 'llama-3.1-8b-instant',
     name: 'Llama 3.1 8B (Instant)',
     description: 'Ultra-low latency passive triage and rapid reconnaissance',

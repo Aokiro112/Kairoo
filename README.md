@@ -2,7 +2,7 @@
 
 [![Next.js 15](https://img.shields.io/badge/Next.js-15.2-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Groq](https://img.shields.io/badge/Groq-Llama_3.3_70B_&_GPT--OSS_120B-F55036?style=flat-square&logo=fastapi)](https://groq.com/)
+[![Groq](https://img.shields.io/badge/Groq-Llama_3.3_70B-F55036?style=flat-square&logo=fastapi)](https://groq.com/)
 [![DeepSeek](https://img.shields.io/badge/DeepSeek-V3_&_Reasoner-0066FF?style=flat-square)](https://deepseek.com/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v3.4-06B6D4?style=flat-square&logo=tailwindcss)](https://tailwindcss.com/)
 [![Playwright](https://img.shields.io/badge/Playwright-Chromium_DOM-45BA4B?style=flat-square&logo=playwright)](https://playwright.dev/)
@@ -11,7 +11,7 @@
 [![Docker](https://img.shields.io/badge/Docker-SecurityEngine_Sandbox-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
 [![Domain](https://img.shields.io/badge/Live-kairo.bond-000000?style=flat-square&logo=vercel)](https://kairo.bond)
 
-> **Kairo** is an autonomous cybersecurity AI copilot and offensive-defensive intelligence workspace. Powered by Groq's high-speed inference (Llama 3.3 70B & GPT-OSS 120B) and DeepSeek (V3 / Reasoner) with server-side rolling IP quotas, an autonomous **ReAct (Reasoning + Action)** agent loop, headless Playwright browser automation, E2B cloud microVM sandboxing, and a hardened containerized security engine, Kairo empowers penetration testers, security engineers, and bug bounty researchers to discover, analyze, and remediate vulnerabilities in real time.
+> **Kairo** is an autonomous cybersecurity AI copilot and offensive-defensive intelligence workspace. Powered by Groq's high-speed inference (Llama 3.3 70B) and DeepSeek (V3 / Reasoner) with server-side rolling IP quotas, an autonomous **ReAct (Reasoning + Action)** agent loop, headless Playwright browser automation, E2B cloud microVM sandboxing, and a hardened containerized security engine, Kairo empowers penetration testers, security engineers, and bug bounty researchers to discover, analyze, and remediate vulnerabilities in real time.
 
 ---
 
@@ -94,7 +94,7 @@ graph TD
 
     subgraph "Inference & Agent Orchestration"
         Backend <-->|Multi-Key Failover Pool| GroqManager[GroqKeyManager<br/>Auto-Rotation & 429 Cooldown]
-        GroqManager <-->|Ultra-Fast Inference| Groq[Groq Cloud<br/>Llama 3.3 70B / GPT-OSS 120B]
+        GroqManager <-->|Ultra-Fast Inference| Groq[Groq Cloud<br/>Llama 3.3 70B]
     end
 
     subgraph "Persistence Layer"

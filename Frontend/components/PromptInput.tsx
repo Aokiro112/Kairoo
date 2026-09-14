@@ -95,15 +95,6 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     provider: 'Groq',
   },
   {
-    id: 'openai/gpt-oss-120b',
-    name: 'GPT-OSS 120B',
-    shortName: 'GPT-OSS 120B',
-    badge: 'High Precision',
-    badgeColor: 'bg-blue-950/70 text-blue-400 border-blue-500/30',
-    description: 'Comprehensive vulnerability assessment & attack surface mapping',
-    provider: 'Groq',
-  },
-  {
     id: 'deepseek-chat',
     name: 'DeepSeek V3',
     shortName: 'DeepSeek',
@@ -152,7 +143,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       if (savedSettings) {
         const parsed = JSON.parse(savedSettings);
         if (parsed.selectedModel) {
-          setSelectedModel(parsed.selectedModel);
+          setSelectedModel(parsed.selectedModel === 'openai/gpt-oss-120b' ? 'llama-3.3-70b-versatile' : parsed.selectedModel);
         }
       }
     } catch {}
@@ -163,7 +154,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed.selectedModel) {
-            setSelectedModel(parsed.selectedModel);
+            setSelectedModel(parsed.selectedModel === 'openai/gpt-oss-120b' ? 'llama-3.3-70b-versatile' : parsed.selectedModel);
           }
         }
       } catch {}

@@ -182,7 +182,7 @@ function ChatWorkspaceContent() {
       handleSendMessage(queryPrompt, {
         mode: 'deep',
         target: '',
-        model: 'openai/gpt-oss-120b',
+        model: 'llama-3.3-70b-versatile',
       });
       router.replace('/chat');
     }
@@ -425,7 +425,7 @@ function ChatWorkspaceContent() {
           userEmail: activeUser?.email || userEmail || undefined,
           userId: activeUser?.id || undefined,
           attachments: attachments && attachments.length > 0 ? attachments : undefined,
-          model: options.model || 'openai/gpt-oss-120b',
+          model: options.model || 'llama-3.3-70b-versatile',
           messages: outgoingMessages,
         }),
         signal: abortControllerRef.current.signal,
@@ -610,7 +610,7 @@ function ChatWorkspaceContent() {
     handleSendMessage(presetPrompt, {
       mode: 'Ask',
       target: 'Kairo Desktop',
-      model: 'openai/gpt-oss-120b',
+      model: 'llama-3.3-70b-versatile',
     });
   };
 

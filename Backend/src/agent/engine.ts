@@ -14,8 +14,8 @@ export interface StreamEvent {
 }
 
 const VALID_GROQ_MODELS = new Set([
-  'openai/gpt-oss-120b',
-  'openai/gpt-oss-20b',
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
   'qwen/qwen3.8-27b',
   'qwen/qwen3.6-27b',
   'groq/compound',
@@ -23,23 +23,28 @@ const VALID_GROQ_MODELS = new Set([
 ]);
 
 const MODEL_ALIAS_MAP: Record<string, string> = {
-  // High performance Groq mappings
-  'openai/gpt-oss-120b': 'openai/gpt-oss-120b',
-  'openai/gpt-oss-20b': 'openai/gpt-oss-20b',
-  'gpt-oss-120b': 'openai/gpt-oss-120b',
-  'gpt-oss-20b': 'openai/gpt-oss-20b',
-  'openai/gpt-4o': 'openai/gpt-oss-120b',
-  'gpt-4o': 'openai/gpt-oss-120b',
-  'gpt-4': 'openai/gpt-oss-120b',
-  'llama-3.3-70b-versatile': 'openai/gpt-oss-120b',
-  'llama-3.3-70b': 'openai/gpt-oss-120b',
-  'groq/llama-3.3-70b': 'openai/gpt-oss-120b',
-  'llama-3.1-8b-instant': 'openai/gpt-oss-20b',
-  'llama-3.1-8b': 'openai/gpt-oss-20b',
+  // Llama mappings
+  'llama-3.3-70b-versatile': 'llama-3.3-70b-versatile',
+  'llama-3.3-70b': 'llama-3.3-70b-versatile',
+  'groq/llama-3.3-70b': 'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant': 'llama-3.1-8b-instant',
+  'llama-3.1-8b': 'llama-3.1-8b-instant',
+  'groq/llama-3.1-8b': 'llama-3.1-8b-instant',
+
+  // OpenAI aliases
+  'openai/gpt-4o': 'llama-3.3-70b-versatile',
+  'gpt-4o': 'llama-3.3-70b-versatile',
+  'gpt-4': 'llama-3.3-70b-versatile',
+
+  // Legacy compatibility fallbacks
+  'openai/gpt-oss-120b': 'llama-3.3-70b-versatile',
+  'openai/gpt-oss-20b': 'llama-3.1-8b-instant',
+  'gpt-oss-120b': 'llama-3.3-70b-versatile',
+  'gpt-oss-20b': 'llama-3.1-8b-instant',
 };
 
 export const resolveModel = (requestedModel?: string): string => {
-  if (!requestedModel) return 'openai/gpt-oss-120b';
+  if (!requestedModel) return 'llama-3.3-70b-versatile';
   const clean = requestedModel.trim().toLowerCase();
 
   if (MODEL_ALIAS_MAP[clean]) {
@@ -51,7 +56,7 @@ export const resolveModel = (requestedModel?: string): string => {
     return clean;
   }
 
-  return 'openai/gpt-oss-120b';
+  return 'llama-3.3-70b-versatile';
 };
 
 function sanitizeToolResultForLLM(result: any): string {
@@ -127,7 +132,7 @@ function createThinkFilter() {
 
 export async function* runSecurityAgentStream(
   messages: Array<{ role: string; content: string }>,
-  model: string = 'openai/gpt-oss-120b',
+  model: string = 'llama-3.3-70b-versatile',
   attachments?: Array<{ id: string; name: string; size: number; content: string; language: string }>,
   userIdentifier: string = 'anonymous',
   options?: { onFirstContentProduced?: () => void }

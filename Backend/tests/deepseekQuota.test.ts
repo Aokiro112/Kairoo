@@ -424,8 +424,8 @@ describe('DeepSeek API & IP-based Quota Verification Suite', () => {
     assert.strictEqual(isDeepSeekModel('deepseek'), true);
 
     assert.strictEqual(isDeepSeekModel('llama-3.3-70b-versatile'), false);
-    assert.strictEqual(isDeepSeekModel('openai/gpt-oss-120b'), false);
-    assert.strictEqual(isDeepSeekModel('openai/gpt-oss-20b'), false);
+    assert.strictEqual(isDeepSeekModel('llama-3.1-8b-instant'), false);
+    assert.strictEqual(isDeepSeekModel('groq/compound'), false);
     assert.strictEqual(isDeepSeekModel('qwen/qwen3.8-27b'), false);
   });
 });
