@@ -203,6 +203,17 @@ class GroqKeyManager {
         return result;
       } catch (err: any) {
         lastError = err;
+
+        // 404 model_not_found: stop immediately — rotating keys won't help, the model is unavailable.
+        // Let the caller handle model fallback logic.
+        if (err.status === 404) {
+          const errCode = err.error?.error?.code || err.error?.code || '';
+          const errMsg = (err.message || '').toLowerCase();
+          if (errCode === 'model_not_found' || errMsg.includes('does not exist') || errMsg.includes('model')) {
+            throw err;
+          }
+        }
+
         const isRateLimit = this.isRateLimitError(err);
 
         if (isRateLimit || err.status === 503 || err.status === 500) {

@@ -67,6 +67,27 @@ export const resolveModel = (requestedModel?: string): string => {
   return 'llama-3.3-70b-versatile';
 };
 
+/**
+ * Silent runtime model fallback chain.
+ * If the Groq API key doesn't have access to the primary model (404 model_not_found),
+ * the backend transparently retries with the next model in this chain.
+ * No UI changes — the user still sees "Llama 3.3 70B" everywhere.
+ */
+const MODEL_FALLBACK_CHAIN: Record<string, string[]> = {
+  'llama-3.3-70b-versatile': ['llama-3.3-70b-specdec', 'llama-3.1-8b-instant'],
+  'llama-3.3-70b-specdec': ['llama-3.1-8b-instant'],
+};
+
+function isModelNotFoundError(err: any): boolean {
+  if (!err) return false;
+  if (err.status === 404) {
+    const msg = err.message || '';
+    const errBody = err.error?.error?.code || err.error?.code || '';
+    return msg.includes('model') || msg.includes('does not exist') || errBody === 'model_not_found';
+  }
+  return false;
+}
+
 function sanitizeToolResultForLLM(result: any): string {
   if (!result) return '{}';
   try {
@@ -145,7 +166,7 @@ export async function* runSecurityAgentStream(
   userIdentifier: string = 'anonymous',
   options?: { onFirstContentProduced?: () => void }
 ): AsyncGenerator<StreamEvent> {
-  const activeModel = resolveModel(model);
+  let activeModel = resolveModel(model);
 
   const lastUserMsg = messages[messages.length - 1]?.content || '';
   const hasAttachments = attachments && attachments.length > 0;
@@ -532,20 +553,69 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
     while (loopCount < maxLoops) {
       loopCount++;
 
-      const streamSource = await groqKeyManager.executeWithRotation(
-        `ReAct Step #${loopCount}`,
-        async (groqClient) => {
-          return await groqClient.chat.completions.create({
-            model: activeModel,
-            messages: conversationHistory,
-            tools: groqTools,
-            tool_choice: 'auto',
-            temperature: 0.2,
-            max_tokens: 4096,
-            stream: true,
-          });
+      let streamSource: any;
+      let modelFallbackAttempted = false;
+
+      try {
+        streamSource = await groqKeyManager.executeWithRotation(
+          `ReAct Step #${loopCount}`,
+          async (groqClient) => {
+            return await groqClient.chat.completions.create({
+              model: activeModel,
+              messages: conversationHistory,
+              tools: groqTools,
+              tool_choice: 'auto',
+              temperature: 0.2,
+              max_tokens: 4096,
+              stream: true,
+            });
+          }
+        );
+      } catch (modelErr: any) {
+        // Silent model fallback: if API key lacks access to the model, try alternatives
+        if (isModelNotFoundError(modelErr) && MODEL_FALLBACK_CHAIN[activeModel]) {
+          const fallbacks = MODEL_FALLBACK_CHAIN[activeModel];
+          let fallbackSuccess = false;
+
+          for (const fallbackModel of fallbacks) {
+            try {
+              console.warn(
+                `⚠️ [ModelFallback] Model "${activeModel}" returned 404. Silently falling back to "${fallbackModel}".`
+              );
+              streamSource = await groqKeyManager.executeWithRotation(
+                `ReAct Step #${loopCount} (fallback: ${fallbackModel})`,
+                async (groqClient) => {
+                  return await groqClient.chat.completions.create({
+                    model: fallbackModel,
+                    messages: conversationHistory,
+                    tools: groqTools,
+                    tool_choice: 'auto',
+                    temperature: 0.2,
+                    max_tokens: 4096,
+                    stream: true,
+                  });
+                }
+              );
+              // Success — lock activeModel to the working fallback for remaining calls
+              activeModel = fallbackModel;
+              modelFallbackAttempted = true;
+              fallbackSuccess = true;
+              console.log(`✅ [ModelFallback] Successfully using "${fallbackModel}" as runtime model.`);
+              break;
+            } catch (fallbackErr: any) {
+              // This fallback also failed — try next one
+              console.warn(`⚠️ [ModelFallback] Fallback "${fallbackModel}" also failed: ${fallbackErr.message}`);
+              continue;
+            }
+          }
+
+          if (!fallbackSuccess) {
+            throw modelErr; // All fallbacks exhausted — rethrow original error
+          }
+        } else {
+          throw modelErr; // Not a model_not_found error — rethrow
         }
-      );
+      }
 
       const toolCallsMap: Record<number, { id: string; name: string; arguments: string }> = {};
       let textContent = '';
@@ -668,18 +738,61 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
           'All diagnostic reconnaissance and security evaluation tools have completed execution. Based on all the gathered evidence, synthesize the final Precision-First Technical Security Audit Report in markdown format.\n\nCRITICAL PRECISION & EVIDENCE RULES:\n1. Discovery is not a vulnerability! Do NOT put reconnaissance observations (such as /robots.txt, static JS/CSS, sitemaps, server banners, normal API routes, or parameter names like "id") into the Validated Vulnerability Matrix unless there is verified evidence of security impact.\n2. In the Validated Vulnerability Matrix, include ONLY confirmed findings with columns: | ID | Severity | Confidence | Status | Endpoint / Asset | Finding & Impact | Remediation Summary |\n3. Place all informational reconnaissance data into Section 2 (Reconnaissance Observations).\n4. In Section 5 (Evaluated Candidates & Benign Behaviors), provide explicit negative conclusions explaining what was investigated and why it is NOT a vulnerability (e.g. why robots.txt is benign, why normal parameters are not IDOR, why missing headers are hardening recommendations).\n\nStructure:\n# 🛡️ Technical Security Audit Report\n## 🎯 1. Executive Summary & Target Profile\n## 🔍 2. Target Profile & Reconnaissance Observations\n## 🚨 3. Validated Vulnerability Matrix\n## 🔬 4. In-Depth Vulnerability Evidence & Validation\n## 🛡️ 5. Evaluated Candidates & Benign Behaviors\n## 🛠️ 6. Prioritized Remediation Roadmap',
       });
 
-      const finalStreamSource = await groqKeyManager.executeWithRotation(
-        'Final Synthesis Stream',
-        async (groqClient) => {
-          return await groqClient.chat.completions.create({
-            model: activeModel,
-            messages: conversationHistory,
-            temperature: 0.2,
-            max_tokens: 4096,
-            stream: true,
-          });
+      let finalStreamSource: any;
+
+      try {
+        finalStreamSource = await groqKeyManager.executeWithRotation(
+          'Final Synthesis Stream',
+          async (groqClient) => {
+            return await groqClient.chat.completions.create({
+              model: activeModel,
+              messages: conversationHistory,
+              temperature: 0.2,
+              max_tokens: 4096,
+              stream: true,
+            });
+          }
+        );
+      } catch (modelErr: any) {
+        // Silent model fallback for synthesis call
+        if (isModelNotFoundError(modelErr) && MODEL_FALLBACK_CHAIN[activeModel]) {
+          const fallbacks = MODEL_FALLBACK_CHAIN[activeModel];
+          let fallbackSuccess = false;
+
+          for (const fallbackModel of fallbacks) {
+            try {
+              console.warn(
+                `⚠️ [ModelFallback] Synthesis: Model "${activeModel}" returned 404. Falling back to "${fallbackModel}".`
+              );
+              finalStreamSource = await groqKeyManager.executeWithRotation(
+                `Final Synthesis Stream (fallback: ${fallbackModel})`,
+                async (groqClient) => {
+                  return await groqClient.chat.completions.create({
+                    model: fallbackModel,
+                    messages: conversationHistory,
+                    temperature: 0.2,
+                    max_tokens: 4096,
+                    stream: true,
+                  });
+                }
+              );
+              activeModel = fallbackModel;
+              fallbackSuccess = true;
+              console.log(`✅ [ModelFallback] Synthesis using "${fallbackModel}".`);
+              break;
+            } catch (fallbackErr: any) {
+              console.warn(`⚠️ [ModelFallback] Synthesis fallback "${fallbackModel}" failed: ${fallbackErr.message}`);
+              continue;
+            }
+          }
+
+          if (!fallbackSuccess) {
+            throw modelErr;
+          }
+        } else {
+          throw modelErr;
         }
-      );
+      }
 
       const synthesisThinkFilter = createThinkFilter();
 
