@@ -60,8 +60,13 @@ export async function getDeepSeekQuotaStatus(
 ): Promise<DeepSeekQuotaStatus> {
   const identifier = getDeepSeekIdentifier(ipHash);
 
-  const record = await prisma.userUsage.findUnique({
-    where: { identifier },
+  const record = await prisma.userUsage.findFirst({
+    where: {
+      OR: [
+        { ipHash },
+        { identifier },
+      ],
+    },
   });
 
   if (!record || !record.deepseekWindowStart) {
@@ -125,8 +130,13 @@ export async function reserveDeepSeekQuota(
 
   return await ipMutex.runExclusive(ipHash, async () => {
     return await prisma.$transaction(async (tx) => {
-      const existing = await tx.userUsage.findUnique({
-        where: { identifier },
+      const existing = await tx.userUsage.findFirst({
+        where: {
+          OR: [
+            { ipHash },
+            { identifier },
+          ],
+        },
       });
 
       // Case 1: First request ever from this IP
@@ -161,6 +171,7 @@ export async function reserveDeepSeekQuota(
         await tx.userUsage.update({
           where: { id: existing.id },
           data: {
+            ipHash: existing.ipHash || ipHash,
             deepseekUses: 1,
             deepseekWindowStart: now,
           },
@@ -185,7 +196,7 @@ export async function reserveDeepSeekQuota(
         return {
           allowed: false,
           limit: MAX_DEEPSEEK_REQUESTS,
-          used: existing.deepseekUses,
+          used: Math.min(existing.deepseekUses, MAX_DEEPSEEK_REQUESTS),
           remaining: 0,
           resetAt,
           windowStart,
@@ -197,6 +208,7 @@ export async function reserveDeepSeekQuota(
       const updated = await tx.userUsage.update({
         where: { id: existing.id },
         data: {
+          ipHash: existing.ipHash || ipHash,
           deepseekUses: { increment: 1 },
         },
       });
@@ -228,8 +240,13 @@ export async function releaseDeepSeekReservation(ipHash: string): Promise<void> 
 
   await ipMutex.runExclusive(ipHash, async () => {
     await prisma.$transaction(async (tx) => {
-      const record = await tx.userUsage.findUnique({
-        where: { identifier },
+      const record = await tx.userUsage.findFirst({
+        where: {
+          OR: [
+            { ipHash },
+            { identifier },
+          ],
+        },
       });
 
       if (!record || record.deepseekUses <= 0) return;

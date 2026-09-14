@@ -19,6 +19,7 @@ import {
   Cpu
 } from 'lucide-react';
 import { AttachedFile } from '@/types/chat';
+import { useGlobalDeepSeekQuota } from '@/lib/deepseekQuota';
 
 const MAX_ATTACHMENTS = 3;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -140,31 +141,18 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>('llama-3.3-70b-versatile');
-  const [deepseekQuota, setDeepseekQuota] = useState<{
-    limit: number;
-    used: number;
-    remaining: number;
-    resetAt: string | null;
-  } | null>(null);
+  const { quota: deepseekQuota, refreshQuota: fetchDeepSeekQuota } = useGlobalDeepSeekQuota();
+
+  useEffect(() => {
+    if (selectedModel === 'deepseek-chat') {
+      fetchDeepSeekQuota();
+    }
+  }, [selectedModel, fetchDeepSeekQuota]);
 
   const [openDropdown, setOpenDropdown] = useState<'plus' | 'mode' | 'target' | 'model' | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const fetchDeepSeekQuota = async () => {
-    try {
-      const res = await fetch('/api/chat/quota');
-      if (res.ok) {
-        const data = await res.json();
-        setDeepseekQuota(data);
-      }
-    } catch {}
-  };
-
-  useEffect(() => {
-    fetchDeepSeekQuota();
-  }, [selectedModel]);
 
   // Sync selectedModel from localStorage on mount & listen to storage events
   useEffect(() => {
