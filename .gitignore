@@ -1,8 +1,9 @@
 # ==========================================
-# HackerAI - Git Ignore Configuration
+# 🛡️ Kairo | Autonomous Cybersecurity Copilot
+# Git Ignore Configuration
 # ==========================================
 
-# 1. Environment, Secrets & Keys (CRITICAL)
+# 1. Environment Variables, Secrets & Credentials (CRITICAL)
 # ------------------------------------------
 .env
 .env.*
@@ -12,20 +13,31 @@
 .env.test.local
 .env.production.local
 Backend/.env
+Backend/.env.*
 Database/.env
+Database/.env.*
 Frontend/.env
+Frontend/.env.*
 Frontend/.env.local
+
+# Allow committed templates
 !*.env.example
 !*.env.template
+!*.env.sample
+
+# Private Keys, Certificates & Tokens
 *.pem
 *.key
 *.cert
 *.crt
 *.pfx
+*.keystore
 
 # Cloud Deployment CLI & Caches
 .vercel/
 .railway/
+.docker/
+docker-compose.override.yml
 
 
 # 2. Dependencies & Package Managers
@@ -44,6 +56,7 @@ jspm_packages/
 .yarn/install-state.gz
 .pnpm-store
 
+
 # 3. Next.js & Frontend Build Artifacts
 # ------------------------------------------
 .next/
@@ -52,7 +65,11 @@ out/
 Frontend/out/
 *.tsbuildinfo
 Frontend/*.tsbuildinfo
+Backend/*.tsbuildinfo
+Database/*.tsbuildinfo
 .turbo/
+.swc/
+
 
 # 4. TypeScript & Backend Build Outputs
 # ------------------------------------------
@@ -63,7 +80,8 @@ build/
 *.js.map
 *.d.ts.map
 
-# 5. Databases & Local Persistent Storage
+
+# 5. Databases & Local Persistent Storage (SQLite / Prisma)
 # ------------------------------------------
 *.db
 *.db-journal
@@ -74,9 +92,30 @@ build/
 dev.db
 Database/prisma/dev.db
 Database/prisma/dev.db-journal
+Database/prisma/*.db
+Database/prisma/*.db-journal
 Backend/prisma/dev.db
+Backend/prisma/dev.db-journal
+Backend/prisma/prisma/
+Backend/prisma/*.db
+**/prisma/*.db
+**/prisma/*.db-*
 
-# 6. Python & Security Engine Artifacts
+
+# 6. Playwright, Browser Automation & Visual Recon Artifacts
+# ------------------------------------------
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+screenshots/
+*.png.tmp
+*.jpeg.tmp
+*.jpg.tmp
+*.trace.zip
+
+
+# 7. Security Engine, Python & Sandbox Artifacts (Docker / E2B)
 # ------------------------------------------
 __pycache__/
 */__pycache__/
@@ -90,8 +129,11 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+sandbox_output/
+.pytest_cache/
 
-# 7. Logs, Debug & Runtime Files
+
+# 8. Logs, Debug & Runtime Files
 # ------------------------------------------
 logs/
 *.log
@@ -100,18 +142,28 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-.system_generated/
 *.pid
 *.seed
 *.pid.lock
 
-# 8. Testing & Coverage
+
+# 9. AI Agent Sessions, Cache & Local Harness Runtime
+# ------------------------------------------
+.system_generated/
+.agents-cache/
+.agent/
+.gemini/
+.claude/
+
+
+# 10. Testing & Coverage Outputs
 # ------------------------------------------
 coverage/
 .nyc_output/
 *.lcov
 
-# 9. IDE, OS & System Files
+
+# 11. IDE, OS & System Files
 # ------------------------------------------
 .DS_Store
 .DS_Store?

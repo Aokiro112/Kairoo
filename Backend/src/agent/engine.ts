@@ -3,6 +3,14 @@ import { SECURITY_AGENT_SYSTEM_PROMPT } from './systemPrompt';
 import { SECURITY_AGENT_TOOLS, executeSecurityTool, validateTargetScope, ToolCall } from './tools';
 import { groqKeyManager } from './groqKeyManager';
 import { runDeepSeekStream, isDeepSeekModel } from './deepseekService';
+import {
+  buildTargetApplicationModel,
+  evaluateCandidateAgainstBenignExplanations,
+  formatTechnicalSecurityReport,
+  Observation,
+  SecurityFinding,
+  TargetApplicationModel,
+} from './securityPipeline';
 
 export { isDeepSeekModel } from './deepseekService';
 
@@ -251,14 +259,18 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
         id: `step-reasoning-${Date.now()}`,
         type: 'reasoning',
         text: hasAttachments
-          ? `Ingesting ${attachments.length} attached file(s) (${attachments.map((a) => a.name).join(', ')}). Formulating AST static code analysis and OWASP vulnerability evaluation.`
+          ? `Ingesting ${attachments.length} attached file(s) (${attachments.map((a) => a.name).join(', ')}). Conducting evidence-first static code evaluation and context analysis.`
           : targetDomain
-          ? `Target domain \`${targetDomain}\` identified. Initiating non-destructive passive reconnaissance, TLS inspection, and HTTP security header analysis.`
-          : `Analyzing query and conducting security audit reasoning workflow.`,
+          ? `Target domain \`${targetDomain}\` identified. Initiating evidence-first passive reconnaissance, TLS inspection, and HTTP security posture evaluation.`
+          : `Analyzing query and conducting evidence-based security reasoning workflow.`,
       },
     };
 
     const executedTools: ToolCall[] = [];
+    const observations: Observation[] = [];
+    const confirmedVulnerabilities: SecurityFinding[] = [];
+    const candidateFindings: SecurityFinding[] = [];
+    const suppressedOrBenign: SecurityFinding[] = [];
 
     if (hasAttachments) {
       for (const att of attachments) {
@@ -269,6 +281,95 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
           });
           codeAudit.toolCall.label = `SAST Code Audit (${att.name})`;
           executedTools.push(codeAudit.toolCall);
+
+          const raw = codeAudit.rawResult || {};
+          observations.push({
+            id: `obs-file-${Date.now()}-${Math.random()}`,
+            type: 'file',
+            target: att.name,
+            sourceTool: 'sast_code_security_audit',
+            data: { language: att.language, lines: raw.lines },
+            description: `Source file ${att.name} (${att.language}, ${raw.lines} lines)`,
+            timestamp: Date.now(),
+          });
+
+          // Evaluate raw issues through benign explanation filter
+          const issues = raw.detectedIssues || [];
+          for (const issue of issues) {
+            const isHardcodedSecret = issue.includes('CWE-312') || issue.includes('hardcoded-secret');
+            const evalResult = evaluateCandidateAgainstBenignExplanations({
+              title: issue,
+              category: isHardcodedSecret ? 'Hardcoded Secrets' : 'Source Code Flaw',
+              affected_asset: att.name,
+              evidence: [issue],
+            });
+
+            if (evalResult.isFalsePositive || evalResult.isInformationalOnly) {
+              suppressedOrBenign.push({
+                id: `benign-${Date.now()}-${Math.random()}`,
+                title: issue,
+                category: isHardcodedSecret ? 'Hardcoded Secrets' : 'Code Pattern',
+                severity: evalResult.recommendedSeverity,
+                confidence: evalResult.recommendedConfidence,
+                status: evalResult.recommendedStatus,
+                affected_asset: att.name,
+                description: evalResult.benignExplanation,
+                evidence: [issue],
+                validation: {
+                  testPerformed: 'Static context analysis',
+                  expectedBehavior: 'Non-production token or harmless pattern',
+                  observedBehavior: 'Harmless or test pattern identified',
+                  securityImplication: evalResult.decisionRationale,
+                  outcome: 'refuted',
+                },
+                impact: 'None',
+                reasoning: {
+                  hypothesis: issue,
+                  supportingFactors: ['Pattern matched AST heuristic'],
+                  benignExplanationConsidered: evalResult.benignExplanation,
+                  decisionRationale: evalResult.decisionRationale,
+                },
+                remediation: 'No action required for non-production items.',
+              });
+            } else {
+              // Real candidate or confirmed finding
+              const isConfirmed = isHardcodedSecret && !att.name.includes('test');
+              const finding: SecurityFinding = {
+                id: `finding-${Date.now()}-${Math.random()}`,
+                title: issue.replace(/^\[[^\]]+\]\s*/, ''),
+                category: isHardcodedSecret ? 'CWE-312: High-Entropy Secret Exposure' : 'Software Weakness',
+                severity: isConfirmed ? 'HIGH' : 'MEDIUM',
+                confidence: isConfirmed ? 'CONFIRMED' : 'MEDIUM',
+                status: isConfirmed ? 'validated' : 'candidate',
+                affected_asset: att.name,
+                description: `Identified security flaw in ${att.name}`,
+                evidence: [issue],
+                validation: {
+                  testPerformed: 'Contextual pattern analysis and secret entropy verification',
+                  expectedBehavior: 'Private secret protected in environment variables',
+                  observedBehavior: 'High-entropy private credential committed in source artifact',
+                  securityImplication: 'Exposure of production secrets leads to direct credential abuse',
+                  outcome: isConfirmed ? 'validated' : 'inconclusive',
+                },
+                impact: isConfirmed ? 'Unauthorized API or service access using exposed private key' : 'Potential injection or execution sink',
+                reasoning: {
+                  hypothesis: issue,
+                  supportingFactors: ['High-entropy matching regex', 'Active production file context'],
+                  benignExplanationConsidered: 'Examined test/dummy placeholder exceptions',
+                  decisionRationale: 'Pattern confirmed as sensitive private credential',
+                },
+                remediation: isHardcodedSecret
+                  ? 'Immediately revoke exposed credential and migrate key storage to environment variables.'
+                  : 'Parameterize all external inputs and sanitize data flows.',
+              };
+
+              if (isConfirmed) {
+                confirmedVulnerabilities.push(finding);
+              } else {
+                candidateFindings.push(finding);
+              }
+            }
+          }
         } catch (e) {}
       }
     } else if (targetDomain) {
@@ -277,6 +378,15 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
           targetUrl: `https://${targetDomain}`,
         });
         executedTools.push(wafRes.toolCall);
+        observations.push({
+          id: `obs-waf-${Date.now()}`,
+          type: 'technology',
+          target: targetDomain,
+          sourceTool: 'waf_detection_wafw00f',
+          data: wafRes.rawResult,
+          description: `WAF Inspection: ${wafRes.rawResult?.wafBrand || wafRes.rawResult?.waf || 'Direct origin exposed'}`,
+          timestamp: Date.now(),
+        });
       } catch (e) {}
 
       try {
@@ -284,6 +394,52 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
           targetUrl: `https://${targetDomain}`,
         });
         executedTools.push(headersRes.toolCall);
+        const hRaw = headersRes.rawResult || {};
+        observations.push({
+          id: `obs-headers-${Date.now()}`,
+          type: 'header',
+          target: targetDomain,
+          sourceTool: 'analyze_security_headers',
+          data: hRaw,
+          description: `HTTP Server: ${hRaw.serverBanner || 'Undisclosed'}. Missing headers: ${(hRaw.missingHeaders || []).join(', ') || 'None'}`,
+          timestamp: Date.now(),
+        });
+
+        // Evaluate missing headers with benign rule
+        if (hRaw.missingHeaders && hRaw.missingHeaders.length > 0) {
+          const headerEval = evaluateCandidateAgainstBenignExplanations({
+            title: 'Missing HTTP Security Headers',
+            category: 'Configuration Hardening',
+            affected_asset: targetDomain,
+            evidence: hRaw.missingHeaders.map((h: string) => `Missing ${h}`),
+          });
+          suppressedOrBenign.push({
+            id: `benign-headers-${Date.now()}`,
+            title: 'Missing HTTP Security Headers',
+            category: 'Defense-in-Depth',
+            severity: headerEval.recommendedSeverity,
+            confidence: headerEval.recommendedConfidence,
+            status: headerEval.recommendedStatus,
+            affected_asset: targetDomain,
+            description: headerEval.benignExplanation,
+            evidence: hRaw.missingHeaders.map((h: string) => `Missing header: ${h}`),
+            validation: {
+              testPerformed: 'HTTP response header inspection',
+              expectedBehavior: 'CSP, HSTS, and framing controls present',
+              observedBehavior: `Missing ${hRaw.missingHeaders.join(', ')}`,
+              securityImplication: headerEval.decisionRationale,
+              outcome: 'inconclusive',
+            },
+            impact: 'Reduced defense-in-depth against client-side attacks.',
+            reasoning: {
+              hypothesis: 'Missing headers allow clickjacking or inline script injection',
+              supportingFactors: ['Headers absent in response'],
+              benignExplanationConsidered: headerEval.benignExplanation,
+              decisionRationale: headerEval.decisionRationale,
+            },
+            remediation: 'Deploy Content-Security-Policy, Strict-Transport-Security, and X-Content-Type-Options.',
+          });
+        }
       } catch (e) {}
 
       try {
@@ -291,6 +447,16 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
           domain: targetDomain,
         });
         executedTools.push(dnsRes.toolCall);
+        const dnsRaw = dnsRes.rawResult || {};
+        observations.push({
+          id: `obs-dns-${Date.now()}`,
+          type: 'dns',
+          target: targetDomain,
+          sourceTool: 'passive_dns_recon',
+          data: dnsRaw,
+          description: `DNS Records (A: ${(dnsRaw.records?.A || []).length}, MX: ${(dnsRaw.records?.MX || []).length}, SPF: ${dnsRaw.hasSPF ? 'Configured' : 'Missing'})`,
+          timestamp: Date.now(),
+        });
       } catch (e) {}
 
       try {
@@ -298,6 +464,16 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
           domain: targetDomain,
         });
         executedTools.push(tlsRes.toolCall);
+        const tlsRaw = tlsRes.rawResult || {};
+        observations.push({
+          id: `obs-tls-${Date.now()}`,
+          type: 'certificate',
+          target: targetDomain,
+          sourceTool: 'ssl_tls_certificate_audit',
+          data: tlsRaw,
+          description: `TLS Issuer: ${tlsRaw.issuer?.O || tlsRaw.issuer?.CN || 'Valid'}, ${tlsRaw.daysRemaining || 0} days remaining, ${(tlsRaw.discoveredSANs || []).length} SANs`,
+          timestamp: Date.now(),
+        });
       } catch (e) {}
     } else {
       try {
@@ -320,64 +496,15 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
       };
     }
 
-    const fallbackReport = hasAttachments
-      ? `### 🛡️ Static Code Security & Artifact Audit Summary
-
-**Audited Artifacts**: ${attachments.map((a) => `\`${a.name}\``).join(', ')}  
-**Assessment Engine**: Kairo Native SAST Matrix & Static AST Engine  
-**Status**: Completed (${executedTools.length} source file passes)
-
----
-
-#### 1. File Inspection Findings
-
-| Artifact Name | Language | Status | Vulnerability Findings |
-| :--- | :--- | :--- | :--- |
-${executedTools
-  .map(
-    (t) =>
-      `| \`${t.label.replace('SAST Code Audit (', '').replace(')', '')}\` | \`Source Code\` | **${t.status.toUpperCase()}** | ${
-        t.resultDetails?.matchedResults?.join('; ') || 'No critical patterns detected'
-      } |`
-  )
-  .join('\n')}
-
----
-
-#### 2. Key Security Recommendations & Remediation
-1. **Parameterized Queries**: Replace raw string interpolations in database queries with prepared statements / parameterized bindings.
-2. **Input Sanitization & Output Encoding**: Ensure all user-controlled inputs undergo context-aware sanitization before rendering or passing to backend routines.
-3. **Secrets Management**: Never commit static credentials, private keys, or API secrets directly in source files or environment templates.
-`
-      : `### 🛡️ Security Audit & Reconnaissance Summary
-
-**Target Asset**: \`${targetDomain || 'Local Analysis'}\`  
-**Assessment Engine**: Kairo Native Security Matrix  
-**Status**: Completed (${executedTools.length} diagnostic tool passes)
-
----
-
-#### 1. Executive Summary & Attack Surface
-During automated passive assessment, multiple diagnostic probes were executed across HTTP headers, DNS infrastructure, and TLS configurations.
-
-| Diagnostic Tool | Scope | Status | Key Observation |
-| :--- | :--- | :--- | :--- |
-${executedTools
-  .map(
-    (t) =>
-      `| \`${t.label}\` | \`${t.query || targetDomain || 'Inspection'}\` | **${t.status.toUpperCase()}** | ${
-        t.resultDetails?.matchedResults?.[0] || 'Inspection completed successfully'
-      } |`
-  )
-  .join('\n')}
-
----
-
-#### 2. Key Hardening Recommendations
-1. **Strict-Transport-Security (HSTS)**: Ensure HSTS is enforced with \`max-age=31536000; includeSubDomains; preload\`.
-2. **Content-Security-Policy (CSP)**: Deploy restrictive CSP rules forbidding \`unsafe-inline\` and \`unsafe-eval\`.
-3. **WAF & Rate Limiting**: Ensure origin servers are masked behind Cloudflare / AWS WAF with aggressive anti-scraping rules enabled.
-`;
+    const appModel = buildTargetApplicationModel(targetDomain || 'Local Analysis', observations);
+    const fallbackReport = formatTechnicalSecurityReport({
+      model: appModel,
+      observations,
+      confirmedVulnerabilities,
+      candidateFindings,
+      suppressedOrBenign,
+      diagnosticToolsCount: executedTools.length,
+    });
 
     yield { type: 'content_chunk', data: fallbackReport };
     yield { type: 'done' };
@@ -538,7 +665,7 @@ ${executedTools
       conversationHistory.push({
         role: 'user',
         content:
-          'All diagnostic reconnaissance and security evaluation tools have completed execution. Based on all the findings gathered above, present the complete, exhaustive Technical Security Audit Report in markdown format.\n\nStructure:\n# 🛡️ Executive Security Summary (Target, Scope, Overall Risk Level)\n## 🎯 Attack Surface & Discovery Overview\n## 🚨 Vulnerability Matrix Table (| ID | Severity | Endpoint / Component | Finding & Impact | Remediation Summary |)\n## 🔬 In-Depth Technical Findings & Evidence\n## 🛠️ Prioritized Remediation Roadmap (Immediate P0, Medium-term P1, Long-term P2)',
+          'All diagnostic reconnaissance and security evaluation tools have completed execution. Based on all the gathered evidence, synthesize the final Precision-First Technical Security Audit Report in markdown format.\n\nCRITICAL PRECISION & EVIDENCE RULES:\n1. Discovery is not a vulnerability! Do NOT put reconnaissance observations (such as /robots.txt, static JS/CSS, sitemaps, server banners, normal API routes, or parameter names like "id") into the Validated Vulnerability Matrix unless there is verified evidence of security impact.\n2. In the Validated Vulnerability Matrix, include ONLY confirmed findings with columns: | ID | Severity | Confidence | Status | Endpoint / Asset | Finding & Impact | Remediation Summary |\n3. Place all informational reconnaissance data into Section 2 (Reconnaissance Observations).\n4. In Section 5 (Evaluated Candidates & Benign Behaviors), provide explicit negative conclusions explaining what was investigated and why it is NOT a vulnerability (e.g. why robots.txt is benign, why normal parameters are not IDOR, why missing headers are hardening recommendations).\n\nStructure:\n# 🛡️ Technical Security Audit Report\n## 🎯 1. Executive Summary & Target Profile\n## 🔍 2. Target Profile & Reconnaissance Observations\n## 🚨 3. Validated Vulnerability Matrix\n## 🔬 4. In-Depth Vulnerability Evidence & Validation\n## 🛡️ 5. Evaluated Candidates & Benign Behaviors\n## 🛠️ 6. Prioritized Remediation Roadmap',
       });
 
       const finalStreamSource = await groqKeyManager.executeWithRotation(

@@ -689,10 +689,10 @@ export async function executeSecurityTool(
         ]);
 
         if (robRes.status === 'fulfilled' && robRes.value.status === 200) {
-          findings.push('[exposure:robots-txt] /robots.txt is publicly accessible (Information Disclosure)');
+          findings.push('[observation:robots-txt] /robots.txt is published (Standard web crawler indexing directive; reconnaissance observation, not a vulnerability)');
         }
         if (secRes.status === 'fulfilled' && secRes.value.status === 200) {
-          findings.push('[info:security-txt] /.well-known/security.txt is published');
+          findings.push('[info:security-txt] /.well-known/security.txt is published (Standard security contact information)');
         }
       } catch {}
 
@@ -770,8 +770,9 @@ export async function executeSecurityTool(
             responseTime: duration,
             matchedResults: [
               `Status: HTTP ${res.status} OK`,
-              `Server Banner: ${serverInfo}`,
-              `Missing Headers: ${missingHeaders.length > 0 ? missingHeaders.join(', ') : 'None (Fully Hardened)'}`,
+              `Server Banner: ${serverInfo} (Reconnaissance observation)`,
+              `Defense-in-Depth Headers: ${missingHeaders.length > 0 ? `${missingHeaders.length} missing (${missingHeaders.join(', ')})` : 'Fully Hardened'}`,
+              `Notice: Missing security headers are hardening recommendations, not directly exploitable vulnerabilities without attack context.`,
             ],
             rawOutput: JSON.stringify(headers, null, 2),
           },
@@ -1013,34 +1014,81 @@ export async function executeSecurityTool(
     case 'sast_code_security_audit': {
       const { language, codeSnippet } = args;
       const detectedIssues: string[] = [];
+      const observations: string[] = [];
 
-      if (/SELECT\s+.*FROM.*(\+|`|\$\{).*(\bWHERE\b|\bAND\b)/i.test(codeSnippet) || /execute\(\s*["'].*%s/i.test(codeSnippet)) {
-        detectedIssues.push('CWE-89: Potential SQL Injection via dynamic raw string concatenation');
+      const isTestOrMock =
+        /test|mock|fixture|spec|\bdescribe\(|\bit\(|\bexpect\(|\bjest\b/i.test(codeSnippet);
+
+      // CWE-89 SQL Injection: Distinguish raw dynamic concat from parameterized queries
+      const isDynamicSql =
+        /SELECT\s+.*FROM.*(\+|`|\$\{).*(\bWHERE\b|\bAND\b)/i.test(codeSnippet) ||
+        /execute\(\s*["'].*%s/i.test(codeSnippet);
+      const isParameterized =
+        /\?\s*,\s*\[|\$\d|\bprepared\b|\bquery\([^,]+,\s*\[/i.test(codeSnippet);
+
+      if (isDynamicSql && !isParameterized) {
+        if (isTestOrMock) {
+          observations.push('[observation:test-query] Raw SQL concatenation pattern found in test/mock context');
+        } else {
+          detectedIssues.push('[candidate:sqli] CWE-89: Dynamic SQL string concatenation detected (requires validation of user input control)');
+        }
       }
+
+      // CWE-78 Command Execution
       if (/exec\(|eval\(|child_process\.exec|os\.system|subprocess\.Popen|shell_exec|system\(/i.test(codeSnippet)) {
-        detectedIssues.push('CWE-78: Direct OS Command / Arbitrary Code Execution sink detected');
+        if (isTestOrMock) {
+          observations.push('[observation:test-command] Process execution function invoked in test context');
+        } else {
+          detectedIssues.push('[candidate:rce] CWE-78: Direct OS Command / Arbitrary Code Execution sink detected (requires validation of untrusted input)');
+        }
       }
+
+      // CWE-918 SSRF
       if (/fetch\(\s*(req\.|request\.|params\.)|requests\.get\(\s*(request\.|params\.|url)/i.test(codeSnippet) || /curl_exec/i.test(codeSnippet)) {
-        detectedIssues.push('CWE-918: Potential Server-Side Request Forgery (SSRF) endpoint');
+        detectedIssues.push('[candidate:ssrf] CWE-918: HTTP request client receiving variable destination (requires validation of remote target control)');
       }
+
+      // CWE-798 Hardcoded Secrets
       if (/jwt\.verify\([^,]+,\s*["'][^"']+["']\)|jwt\.sign\([^,]+,\s*["'][^"']+["']\)/i.test(codeSnippet)) {
-        detectedIssues.push('CWE-798: Hardcoded static JWT secret / signature key');
+        if (!/secret|test|mock|example|dummy/i.test(codeSnippet)) {
+          detectedIssues.push('[candidate:crypto] CWE-798: Static JWT secret embedded in source code');
+        } else {
+          observations.push('[observation:mock-secret] Static JWT secret present in test/placeholder code');
+        }
       }
-      if (/AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|sk_live_[0-9a-zA-Z]{24}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/i.test(codeSnippet)) {
-        detectedIssues.push('CWE-312: High-entropy plaintext secret / API credentials embedded in source');
+
+      // High entropy credentials vs mock placeholders
+      const secretRegex = /AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|sk_live_[0-9a-zA-Z]{24}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/;
+      const isPlaceholder = /dummy|example|test_key|placeholder|YOUR_KEY|fake|sample/i.test(codeSnippet);
+      if (secretRegex.test(codeSnippet)) {
+        if (isPlaceholder || isTestOrMock) {
+          observations.push('[observation:mock-secret] Non-production test credential or documentation placeholder pattern identified');
+        } else {
+          detectedIssues.push('[finding:hardcoded-secret] CWE-312: High-entropy private credential / API secret embedded in source');
+        }
       }
+
+      // CWE-22 Path Traversal
       if (/fs\.readFile\(.*(req\.|params\.|query\.)|open\(.*(request\.|params\.)|readfile\(.*(\$_GET|\$_POST)/i.test(codeSnippet) || /\.\.\//i.test(codeSnippet)) {
-        detectedIssues.push('CWE-22: Improper input validation leading to Path Traversal');
+        detectedIssues.push('[candidate:path-traversal] CWE-22: File path operation uses unvalidated request parameter (requires traversal validation)');
       }
+
+      // CWE-79 XSS
       if (/dangerouslySetInnerHTML|innerHTML\s*=|document\.write\(/i.test(codeSnippet) || /echo\s+\$_GET/i.test(codeSnippet)) {
-        detectedIssues.push('CWE-79: Unsanitized DOM/Template output (Cross-Site Scripting)');
+        detectedIssues.push('[candidate:xss] CWE-79: Unsanitized DOM/Template output sink detected');
       }
+
+      // CWE-502 Insecure Deserialization
       if (/pickle\.loads|yaml\.load\([^,]+\)|unserialize\(/i.test(codeSnippet)) {
-        detectedIssues.push('CWE-502: Deserialization of untrusted data');
+        detectedIssues.push('[candidate:deserialization] CWE-502: Untrusted deserialization function sink detected');
       }
+
+      // CWE-489 Debug Mode
       if (/DEBUG\s*=\s*True|process\.env\.NODE_ENV\s*!==\s*['"]production['"]/i.test(codeSnippet) && /django|flask|express/i.test(codeSnippet)) {
-        detectedIssues.push('CWE-489: Debug / verbose error mode enabled in production code');
+        observations.push('[observation:debug-mode] CWE-489: Debug or verbose error mode enabled in application configuration');
       }
+
+      const allSignals = [...detectedIssues, ...observations];
 
       return {
         toolCall: {
@@ -1051,13 +1099,13 @@ export async function executeSecurityTool(
           resultDetails: {
             statusCode: 200,
             matchedResults:
-              detectedIssues.length > 0
-                ? detectedIssues
+              allSignals.length > 0
+                ? allSignals
                 : ['Static heuristic AST scan: No standard high-severity anti-patterns detected'],
-            rawOutput: `Analyzed ${codeSnippet.split('\n').length} lines of ${language} code.\nDetected Issues: ${detectedIssues.length}`,
+            rawOutput: `Analyzed ${codeSnippet.split('\n').length} lines of ${language} code.\nCandidates: ${detectedIssues.length} | Observations: ${observations.length}`,
           },
         },
-        rawResult: { language, detectedIssues, lines: codeSnippet.split('\n').length },
+        rawResult: { language, detectedIssues, observations, lines: codeSnippet.split('\n').length },
       };
     }
 

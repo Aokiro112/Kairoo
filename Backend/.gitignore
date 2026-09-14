@@ -12,8 +12,12 @@ node_modules/
 
 # Database
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
+prisma/prisma/
 
 # OS / Logs
 .DS_Store
