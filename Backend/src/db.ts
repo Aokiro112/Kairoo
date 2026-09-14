@@ -16,6 +16,20 @@ for (const p of candidates) {
   }
 }
 
+const dbUrl = process.env.DATABASE_URL || 'file:./prisma/dev.db';
+if (dbUrl.startsWith('file:')) {
+  let dbFilePath = dbUrl.slice(5);
+  if (!path.isAbsolute(dbFilePath)) {
+    dbFilePath = path.resolve(process.cwd(), dbFilePath);
+  }
+  const dir = path.dirname(dbFilePath);
+  if (!fs.existsSync(dir)) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch {}
+  }
+}
+
 export const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
 });

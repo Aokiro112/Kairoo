@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "prisma generate && tsc",
-    "start": "prisma db push --accept-data-loss && npm run build && node dist/server.js",
+    "start": "prisma db push && npm run build && node dist/server.js",
     "test": "tsx --test tests/**/*.test.ts",
     "postinstall": "prisma generate"
   },

@@ -16,6 +16,7 @@ import { TaskSession, ChatMessage, ToolCall, Project, AssistantStep, AttachedFil
 import { FolderOpen, MessageSquare, Globe, Code2, FileText, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getUserSession } from '@/lib/session';
+import { getPersistentDeviceId } from '@/lib/device';
 
 function generateTaskTitle(text: string): string {
   const clean = text.trim().replace(/^https?:\/\//, '').replace(/[#*`_]/g, '');
@@ -415,9 +416,13 @@ function ChatWorkspaceContent() {
       outgoingMessages.push({ role: 'user', content: userText });
 
       const activeUser = getUserSession();
+      const deviceId = getPersistentDeviceId();
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': deviceId,
+        },
         credentials: 'include',
         body: JSON.stringify({
           taskId: currentTaskId,
@@ -425,6 +430,7 @@ function ChatWorkspaceContent() {
           userMessageText: userText,
           userEmail: activeUser?.email || userEmail || undefined,
           userId: activeUser?.id || undefined,
+          deviceId,
           attachments: attachments && attachments.length > 0 ? attachments : undefined,
           model: options.model || 'llama-3.3-70b-versatile',
           messages: outgoingMessages,

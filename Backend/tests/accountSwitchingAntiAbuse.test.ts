@@ -107,6 +107,8 @@ describe('Account Switching & Multi-Signal Anti-Abuse DeepSeek Quota Suite', () 
     email: string;
     ip?: string;
     cookie?: string;
+    deviceId?: string;
+    deviceIdHeader?: string;
     taskId?: string;
     projectId?: string;
   }) => {
@@ -117,6 +119,9 @@ describe('Account Switching & Multi-Signal Anti-Abuse DeepSeek Quota Suite', () 
     if (opts.cookie) {
       headers['Cookie'] = opts.cookie;
     }
+    if (opts.deviceIdHeader) {
+      headers['x-device-id'] = opts.deviceIdHeader;
+    }
 
     const res = await originalFetch(`${serverBaseUrl}/api/chat`, {
       method: 'POST',
@@ -124,6 +129,7 @@ describe('Account Switching & Multi-Signal Anti-Abuse DeepSeek Quota Suite', () 
       body: JSON.stringify({
         taskId: opts.taskId || `test-anti-abuse-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         projectId: opts.projectId || undefined,
+        deviceId: opts.deviceId || undefined,
         model: 'deepseek-chat',
         userMessageText: 'Audit login portal for security issues',
         userEmail: opts.email,
@@ -349,5 +355,54 @@ describe('Account Switching & Multi-Signal Anti-Abuse DeepSeek Quota Suite', () 
 
     assert.strictEqual(res.status, 200, 'Genuine different browser on different IP has its own quota');
     assert.strictEqual(deepseekProviderCallCount, 4, 'DeepSeek called for independent environment');
+  });
+
+  // --------------------------------------------------------------------------
+  // Test J & K: Client-Side localStorage Persistent Device ID Anti-Abuse
+  // Simulating mobile user who switches Google accounts on the same phone
+  // while mobile cellular IP changes between cell towers
+  // --------------------------------------------------------------------------
+  it('Test J: Phone client with localStorage token sends 2 messages under Google Account 1 -> ALLOWED (2/2)', async () => {
+    const phoneClientToken = 'kdt_phone_iphone15_safari_persistent_99887766';
+    const cellularIp1 = '198.51.100.240';
+
+    // Message 1 from Google Account 1
+    const res1 = await sendChatRequest({
+      email: 'phone_google_user_1@kairo.test',
+      ip: cellularIp1,
+      deviceId: phoneClientToken,
+      deviceIdHeader: phoneClientToken,
+    });
+    assert.strictEqual(res1.status, 200, 'Phone msg #1 allowed');
+
+    // Message 2 from Google Account 1
+    const res2 = await sendChatRequest({
+      email: 'phone_google_user_1@kairo.test',
+      ip: cellularIp1,
+      deviceId: phoneClientToken,
+      deviceIdHeader: phoneClientToken,
+    });
+    assert.strictEqual(res2.status, 200, 'Phone msg #2 allowed');
+    assert.strictEqual(deepseekProviderCallCount, 6, 'DeepSeek provider called for both allowed messages');
+  });
+
+  it('Test K: Same phone switches to Google Account 2 and rotates to a new cellular IP -> STRICTLY BLOCKED (HTTP 429)', async () => {
+    const phoneClientToken = 'kdt_phone_iphone15_safari_persistent_99887766';
+    const cellularIp2 = '198.51.100.241'; // Different IP due to cellular rotation
+
+    const beforeCalls = deepseekProviderCallCount;
+
+    // Message 1 from Google Account 2 on same phone
+    const res = await sendChatRequest({
+      email: 'phone_google_user_2@kairo.test',
+      ip: cellularIp2,
+      deviceId: phoneClientToken,
+      deviceIdHeader: phoneClientToken,
+    });
+
+    assert.strictEqual(res.status, 429, 'Account 2 on same phone MUST be blocked with HTTP 429');
+    const json = (await res.json()) as any;
+    assert.strictEqual(json?.error, 'DEEPSEEK_LIMIT_REACHED');
+    assert.strictEqual(deepseekProviderCallCount, beforeCalls, 'DeepSeek provider MUST NOT be called');
   });
 });
