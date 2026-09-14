@@ -68,24 +68,99 @@ export const resolveModel = (requestedModel?: string): string => {
 };
 
 /**
- * Silent runtime model fallback chain.
- * If the Groq API key doesn't have access to the primary model (404 model_not_found),
- * the backend transparently retries with the next model in this chain.
- * No UI changes — the user still sees "Llama 3.3 70B" everywhere.
+ * Static fallback chain (tried first). If these also fail,
+ * the system falls back to dynamic model discovery from Groq API.
  */
 const MODEL_FALLBACK_CHAIN: Record<string, string[]> = {
   'llama-3.3-70b-versatile': ['llama-3.3-70b-specdec', 'llama-3.1-8b-instant'],
   'llama-3.3-70b-specdec': ['llama-3.1-8b-instant'],
 };
 
-function isModelNotFoundError(err: any): boolean {
+/**
+ * Preferred model priority for dynamic discovery fallback.
+ * When all hardcoded models fail, we pick the best available model
+ * from discovered models using this priority (first match wins).
+ */
+const DYNAMIC_MODEL_PREFERENCE = [
+  // Best tool-calling models (largest first)
+  'openai/gpt-oss-120b',
+  'llama-3.3-70b-versatile',
+  'llama-3.3-70b-specdec',
+  'qwen/qwen3.8-27b',
+  'qwen/qwen3.6-27b',
+  'openai/gpt-oss-20b',
+  'llama-3.1-8b-instant',
+  'llama3-70b-8192',
+  'llama3-8b-8192',
+  'gemma2-9b-it',
+  'mixtral-8x7b-32768',
+  'groq/compound',
+];
+
+function isModelUnavailableError(err: any): boolean {
   if (!err) return false;
-  if (err.status === 404) {
-    const msg = err.message || '';
-    const errBody = err.error?.error?.code || err.error?.code || '';
-    return msg.includes('model') || msg.includes('does not exist') || errBody === 'model_not_found';
+  const status = err.status;
+  const errCode = err.error?.error?.code || err.error?.code || '';
+  const msg = (err.message || '').toLowerCase();
+
+  // 404 model_not_found
+  if (status === 404 && (errCode === 'model_not_found' || msg.includes('does not exist') || msg.includes('model'))) {
+    return true;
+  }
+  // 400 model_decommissioned
+  if (status === 400 && (errCode === 'model_decommissioned' || msg.includes('decommissioned'))) {
+    return true;
   }
   return false;
+}
+
+/**
+ * Models to exclude from dynamic fallback — these are NOT suitable
+ * for security agent tool-calling (audio, TTS, safety guardrails, etc.)
+ */
+const NON_AGENT_MODEL_PATTERNS = [
+  'whisper', 'vision', 'guard', 'tts', 'embed',
+  'orpheus', 'safeguard', 'allam',
+];
+
+/**
+ * Builds the full fallback list for a model:
+ * 1. Static hardcoded chain
+ * 2. Dynamic discovery from Groq API (best available model by preference)
+ */
+async function getModelFallbacks(failedModel: string): Promise<string[]> {
+  const fallbacks: string[] = [];
+
+  // Add static chain first
+  if (MODEL_FALLBACK_CHAIN[failedModel]) {
+    fallbacks.push(...MODEL_FALLBACK_CHAIN[failedModel]);
+  }
+
+  // Add dynamically discovered models (filtered by preference, excluding already-listed)
+  try {
+    const discovered = await groqKeyManager.discoverAvailableModels();
+    if (discovered.length > 0) {
+      // First add preferred models that are available
+      for (const pref of DYNAMIC_MODEL_PREFERENCE) {
+        if (discovered.includes(pref) && pref !== failedModel && !fallbacks.includes(pref)) {
+          fallbacks.push(pref);
+        }
+      }
+      // Then add any other text-generation models we haven't listed
+      for (const modelId of discovered) {
+        const isExcluded = NON_AGENT_MODEL_PATTERNS.some((p) => modelId.toLowerCase().includes(p));
+        if (
+          modelId !== failedModel &&
+          !fallbacks.includes(modelId) &&
+          !isExcluded
+        ) {
+          fallbacks.push(modelId);
+        }
+      }
+    }
+  } catch {}
+
+  return fallbacks;
 }
 
 function sanitizeToolResultForLLM(result: any): string {
@@ -573,14 +648,14 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
         );
       } catch (modelErr: any) {
         // Silent model fallback: if API key lacks access to the model, try alternatives
-        if (isModelNotFoundError(modelErr) && MODEL_FALLBACK_CHAIN[activeModel]) {
-          const fallbacks = MODEL_FALLBACK_CHAIN[activeModel];
+        if (isModelUnavailableError(modelErr)) {
+          const fallbacks = await getModelFallbacks(activeModel);
           let fallbackSuccess = false;
 
           for (const fallbackModel of fallbacks) {
             try {
               console.warn(
-                `⚠️ [ModelFallback] Model "${activeModel}" returned 404. Silently falling back to "${fallbackModel}".`
+                `⚠️ [ModelFallback] Model "${activeModel}" unavailable. Trying "${fallbackModel}"...`
               );
               streamSource = await groqKeyManager.executeWithRotation(
                 `ReAct Step #${loopCount} (fallback: ${fallbackModel})`,
@@ -613,7 +688,7 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
             throw modelErr; // All fallbacks exhausted — rethrow original error
           }
         } else {
-          throw modelErr; // Not a model_not_found error — rethrow
+          throw modelErr; // Not a model unavailability error — rethrow
         }
       }
 
@@ -755,14 +830,14 @@ Requests to scan, probe, audit, or exploit Kairo's own infrastructure (\`kairo.b
         );
       } catch (modelErr: any) {
         // Silent model fallback for synthesis call
-        if (isModelNotFoundError(modelErr) && MODEL_FALLBACK_CHAIN[activeModel]) {
-          const fallbacks = MODEL_FALLBACK_CHAIN[activeModel];
+        if (isModelUnavailableError(modelErr)) {
+          const fallbacks = await getModelFallbacks(activeModel);
           let fallbackSuccess = false;
 
           for (const fallbackModel of fallbacks) {
             try {
               console.warn(
-                `⚠️ [ModelFallback] Synthesis: Model "${activeModel}" returned 404. Falling back to "${fallbackModel}".`
+                `⚠️ [ModelFallback] Synthesis: Model "${activeModel}" unavailable. Trying "${fallbackModel}"...`
               );
               finalStreamSource = await groqKeyManager.executeWithRotation(
                 `Final Synthesis Stream (fallback: ${fallbackModel})`,

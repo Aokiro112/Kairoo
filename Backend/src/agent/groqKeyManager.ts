@@ -32,9 +32,67 @@ class GroqKeyManager {
   private currentIndex: number = 0;
   private totalRequestsPerKey: number[] = [];
   private totalFailoversPerKey: number[] = [];
+  private _availableModelIds: string[] = [];
+  private _modelDiscoveryDone: boolean = false;
 
   constructor() {
     this.reloadKeys();
+    // Fire-and-forget: discover available models in background on startup
+    this.discoverAvailableModels().catch(() => {});
+  }
+
+  /**
+   * Queries the Groq API /models endpoint to discover which models
+   * this API key actually has access to. Caches the result.
+   */
+  public async discoverAvailableModels(): Promise<string[]> {
+    if (this._modelDiscoveryDone && this._availableModelIds.length > 0) {
+      return this._availableModelIds;
+    }
+
+    if (this.clients.length === 0) {
+      this._modelDiscoveryDone = true;
+      return [];
+    }
+
+    try {
+      const models = await this.clients[0].models.list();
+      this._availableModelIds = (models?.data || [])
+        .map((m: any) => m.id)
+        .filter((id: string) => !!id);
+      this._modelDiscoveryDone = true;
+
+      if (this._availableModelIds.length > 0) {
+        console.log(
+          `🔎 [GroqKeyManager] Discovered ${this._availableModelIds.length} available model(s): ${this._availableModelIds.join(', ')}`
+        );
+      } else {
+        console.warn('⚠️ [GroqKeyManager] Model discovery returned 0 models.');
+      }
+    } catch (err: any) {
+      console.warn(`⚠️ [GroqKeyManager] Model discovery failed: ${err.message}`);
+      this._modelDiscoveryDone = true;
+    }
+
+    return this._availableModelIds;
+  }
+
+  /**
+   * Returns discovered model IDs. Empty if discovery hasn't completed.
+   */
+  public getAvailableModelIds(): string[] {
+    return this._availableModelIds;
+  }
+
+  /**
+   * Checks if a specific model is available (discovered via API).
+   * Returns true if discovery hasn't run yet (optimistic).
+   */
+  public isModelAvailable(modelId: string): boolean {
+    if (!this._modelDiscoveryDone || this._availableModelIds.length === 0) {
+      return true; // Optimistic: if we don't know, try it
+    }
+    return this._availableModelIds.includes(modelId);
   }
 
   /**
@@ -204,12 +262,18 @@ class GroqKeyManager {
       } catch (err: any) {
         lastError = err;
 
-        // 404 model_not_found: stop immediately — rotating keys won't help, the model is unavailable.
+        // 404 model_not_found or 400 model_decommissioned: stop immediately —
+        // rotating keys won't help, the model is unavailable.
         // Let the caller handle model fallback logic.
-        if (err.status === 404) {
+        if (err.status === 404 || err.status === 400) {
           const errCode = err.error?.error?.code || err.error?.code || '';
           const errMsg = (err.message || '').toLowerCase();
-          if (errCode === 'model_not_found' || errMsg.includes('does not exist') || errMsg.includes('model')) {
+          if (
+            errCode === 'model_not_found' ||
+            errCode === 'model_decommissioned' ||
+            errMsg.includes('does not exist') ||
+            errMsg.includes('decommissioned')
+          ) {
             throw err;
           }
         }
