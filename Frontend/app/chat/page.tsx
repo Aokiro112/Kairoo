@@ -16,7 +16,6 @@ import { TaskSession, ChatMessage, ToolCall, Project, AssistantStep, AttachedFil
 import { FolderOpen, MessageSquare, Globe, Code2, FileText, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getUserSession } from '@/lib/session';
-import { fetchGlobalDeepSeekQuota, setGlobalDeepSeekQuota } from '@/lib/deepseekQuota';
 
 function generateTaskTitle(text: string): string {
   const clean = text.trim().replace(/^https?:\/\//, '').replace(/[#*`_]/g, '');
@@ -230,25 +229,21 @@ function ChatWorkspaceContent() {
     if (selectedTask?.projectId) {
       setActiveProjectId(selectedTask.projectId);
     }
-    fetchGlobalDeepSeekQuota();
   };
 
   const handleSelectProject = (id: string | null) => {
     setActiveProjectId(id);
     setActiveTaskId(null);
-    fetchGlobalDeepSeekQuota();
   };
 
   const handleNewTask = () => {
     setActiveTaskId(null);
     setActiveProjectId(null);
-    fetchGlobalDeepSeekQuota();
   };
 
   const handleNewTaskInProject = (projId: string) => {
     setActiveProjectId(projId);
     setActiveTaskId(null);
-    fetchGlobalDeepSeekQuota();
   };
 
   const handleDeleteTask = async (id: string) => {
@@ -348,7 +343,6 @@ function ChatWorkspaceContent() {
         });
         setActiveProjectId(newProj.id);
         setActiveTaskId(null);
-        fetchGlobalDeepSeekQuota();
       }
     } catch (e) {
       console.error('Failed to create project', e);
@@ -444,13 +438,6 @@ function ChatWorkspaceContent() {
           const errJson = await res.json();
           if (errJson?.error === 'DEEPSEEK_LIMIT_REACHED') {
             isDeepSeekLimit = true;
-            setGlobalDeepSeekQuota({
-              limit: typeof errJson.limit === 'number' ? errJson.limit : 2,
-              used: typeof errJson.used === 'number' ? errJson.used : 2,
-              remaining: 0,
-              resetAt: errJson.resetAt || null,
-              allowed: false,
-            });
             const resetDate = errJson.resetAt ? new Date(errJson.resetAt) : null;
             const formattedDate = resetDate
               ? resetDate.toLocaleDateString(undefined, {
@@ -486,10 +473,6 @@ function ChatWorkspaceContent() {
         );
         setIsStreaming(false);
         return;
-      }
-
-      if (options.model === 'deepseek-chat') {
-        fetchGlobalDeepSeekQuota();
       }
 
       const reader = res.body.getReader();
@@ -605,7 +588,6 @@ function ChatWorkspaceContent() {
       }
     } finally {
       setIsStreaming(false);
-      fetchGlobalDeepSeekQuota();
     }
   };
 
