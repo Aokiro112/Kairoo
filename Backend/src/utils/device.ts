@@ -1,0 +1,153 @@
+import crypto from 'crypto';
+import { Request, Response } from 'express';
+
+export const DEVICE_COOKIE_NAME = 'kairo_device_id';
+const DEVICE_SECRET = process.env.DEVICE_SECRET || process.env.JWT_SECRET || 'kairo_device_hmac_secret_v1_849204';
+const DEVICE_SALT = process.env.IP_HASH_SALT || 'kairo_deepseek_ip_salt_v1';
+
+/**
+ * Generates an opaque, cryptographically random 32-byte hex token
+ * with an HMAC-SHA256 signature appended: `kdid_<token>.<sig>`.
+ * This ensures the client cannot forge or arbitrarily choose a new device identifier.
+ */
+export function generateDeviceToken(): string {
+  const randomPayload = crypto.randomBytes(24).toString('hex'); // 48 hex chars
+  const signature = crypto
+    .createHmac('sha256', DEVICE_SECRET)
+    .update(randomPayload)
+    .digest('hex')
+    .slice(0, 32); // 32 hex chars signature
+  return `kdid_${randomPayload}.${signature}`;
+}
+
+/**
+ * Validates that a device token was authentic and issued by this server.
+ */
+export function verifyDeviceToken(token: string): boolean {
+  if (!token || typeof token !== 'string') return false;
+  if (!token.startsWith('kdid_')) return false;
+
+  const dotIdx = token.indexOf('.');
+  if (dotIdx === -1) return false;
+
+  const payload = token.slice(5, dotIdx);
+  const signature = token.slice(dotIdx + 1);
+
+  if (!payload || !signature) return false;
+
+  const expectedSig = crypto
+    .createHmac('sha256', DEVICE_SECRET)
+    .update(payload)
+    .digest('hex')
+    .slice(0, 32);
+
+  // Timing-safe comparison to prevent timing attacks
+  try {
+    const expectedBuf = Buffer.from(expectedSig, 'utf8');
+    const actualBuf = Buffer.from(signature, 'utf8');
+    if (expectedBuf.length !== actualBuf.length) return false;
+    return crypto.timingSafeEqual(expectedBuf, actualBuf);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Computes a privacy-safe deterministic SHA-256 hash of the verified device token.
+ * Prevents storing raw device identifiers in the database while ensuring deterministic matching.
+ */
+export function hashDeviceId(rawDeviceId: string): string {
+  return crypto
+    .createHash('sha256')
+    .update(`${DEVICE_SALT}:dev:${rawDeviceId.trim()}`)
+    .digest('hex');
+}
+
+/**
+ * Lightweight RFC 6265 cookie header parser without external dependencies.
+ */
+export function parseCookies(cookieHeader?: string): Record<string, string> {
+  const list: Record<string, string> = {};
+  if (!cookieHeader || typeof cookieHeader !== 'string') return list;
+
+  cookieHeader.split(';').forEach((cookie) => {
+    const parts = cookie.split('=');
+    if (parts.length >= 2) {
+      const name = parts[0].trim();
+      const val = parts.slice(1).join('=').trim();
+      try {
+        list[name] = decodeURIComponent(val);
+      } catch {
+        list[name] = val;
+      }
+    }
+  });
+
+  return list;
+}
+
+/**
+ * Creates the formatted Set-Cookie header value for the persistent device identifier.
+ * - 10-year lifetime (315,360,000 seconds)
+ * - HttpOnly (prevents JavaScript tampering or extraction)
+ * - SameSite=Lax (safe for normal navigation & first-party API calls)
+ * - Path=/ (valid across entire application)
+ */
+export function buildDeviceCookieString(token: string, isProduction = process.env.NODE_ENV === 'production'): string {
+  let cookie = `${DEVICE_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; Max-Age=315360000; HttpOnly; SameSite=Lax`;
+  if (isProduction) {
+    cookie += '; Secure';
+  }
+  return cookie;
+}
+
+/**
+ * Server-authoritative device resolver.
+ * 1. Checks incoming request cookies for a valid HMAC-signed device token.
+ * 2. Also checks `x-device-id` header (for automated backend tests / proxy environments).
+ * 3. If missing or forged, generates a new authenticated token and sets a first-party cookie.
+ * 4. Returns both the token and its privacy-safe hash.
+ */
+export function getOrIssueDeviceId(
+  req: Request,
+  res?: Response
+): { deviceId: string; deviceHash: string; isNew: boolean } {
+  const cookies = parseCookies(req.headers.cookie);
+  const cookieToken = cookies[DEVICE_COOKIE_NAME] || cookies['kairo_did'];
+  const headerToken = req.headers['x-device-id'] as string | undefined;
+
+  const candidate = cookieToken || headerToken;
+
+  if (candidate && verifyDeviceToken(candidate)) {
+    return {
+      deviceId: candidate,
+      deviceHash: hashDeviceId(candidate),
+      isNew: false,
+    };
+  }
+
+  // Generate new server-authenticated device token
+  const newToken = generateDeviceToken();
+  const deviceHash = hashDeviceId(newToken);
+
+  if (res && !res.headersSent) {
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieStr = buildDeviceCookieString(newToken, isProd);
+
+    // Append to existing Set-Cookie headers if any
+    const existing = res.getHeader('Set-Cookie');
+    if (!existing) {
+      res.setHeader('Set-Cookie', cookieStr);
+    } else if (Array.isArray(existing)) {
+      res.setHeader('Set-Cookie', [...existing, cookieStr]);
+    } else {
+      res.setHeader('Set-Cookie', [existing.toString(), cookieStr]);
+    }
+  }
+
+  return {
+    deviceId: newToken,
+    deviceHash,
+    isNew: true,
+  };
+}

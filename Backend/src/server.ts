@@ -90,6 +90,16 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+import { getOrIssueDeviceId } from './utils/device';
+
+// Ensure persistent first-party device identifier is issued/verified on all incoming requests
+app.use((req, res, next) => {
+  try {
+    getOrIssueDeviceId(req, res);
+  } catch {}
+  next();
+});
+
 // 5. API Routes with Targeted Rate Limits
 app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/projects', projectsRouter);

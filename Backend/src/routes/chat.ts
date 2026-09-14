@@ -6,20 +6,24 @@ import { hashIp } from '../utils/ipHash';
 import {
   reserveDeepSeekQuota,
   getDeepSeekQuotaStatus,
+  AntiAbuseContext,
 } from '../services/deepseekQuotaService';
 import { optionalAuth, AuthenticatedRequest } from '../middleware/auth';
+import { getOrIssueDeviceId } from '../utils/device';
 
 export const chatRouter = Router();
 
 /**
- * GET /api/chat/quota - Returns current DeepSeek quota status for the caller's IP
+ * GET /api/chat/quota - Returns current DeepSeek quota status across IP, device, and account signals
  * Allows frontend to display remaining quota without consuming a request.
  */
-chatRouter.get('/quota', async (req: Request, res: Response) => {
+chatRouter.get('/quota', optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const clientIp = getClientIp(req);
     const ipHash = hashIp(clientIp);
-    const quota = await getDeepSeekQuotaStatus(ipHash);
+    const { deviceHash } = getOrIssueDeviceId(req, res);
+    const accountEmail = (req.user?.email || (req.query.email as string) || '').trim().toLowerCase() || null;
+    const quota = await getDeepSeekQuotaStatus({ ipHash, deviceHash, accountEmail });
 
     res.json({
       provider: 'deepseek',
@@ -49,6 +53,13 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
   // Derive client IP strictly from trusted server-side proxy headers; ignore any client-supplied body IP
   const clientIp = getClientIp(req);
   const ipHash = hashIp(clientIp);
+
+  // Derive and authenticate persistent first-party device identifier
+  const { deviceHash } = getOrIssueDeviceId(req, res);
+
+  // Extract account email when available
+  const accountEmail = (req.user?.email || userEmail || req.body?.user?.email || '').trim().toLowerCase() || null;
+
   const candidateModel =
     model ||
     req.body.selectedModel ||
@@ -63,18 +74,25 @@ chatRouter.post('/', optionalAuth, async (req: AuthenticatedRequest, res: Respon
     // 2. Strict Quota Enforcement (MUST run BEFORE any paid DeepSeek API call)
     // --------------------------------------------------------------------------
     if (isDeepSeek) {
-      // Enforce strict 2-request per 3-day rolling window per IP hash.
+      // Enforce strict 2-request per 3-day rolling window across IP, persistent device, and account.
       // Atomically checks and increments quota in database transaction.
-      const quota = await reserveDeepSeekQuota(ipHash);
+      const antiAbuseContext: AntiAbuseContext = {
+        ipHash,
+        deviceHash,
+        accountEmail,
+      };
+
+      const quota = await reserveDeepSeekQuota(antiAbuseContext);
 
       console.log(
-        `[DeepSeek Quota] ipHash="${ipHash.slice(0, 12)}…" allowed=${quota.allowed} ` +
+        `[DeepSeek Quota] ipHash="${ipHash.slice(0, 12)}…" devHash="${deviceHash.slice(0, 12)}…" ` +
+        `account="${accountEmail || 'anon'}" allowed=${quota.allowed} ` +
         `used=${quota.used}/${quota.limit} remaining=${quota.remaining} ` +
         `resetAt=${quota.resetAt ? quota.resetAt.toISOString() : 'none'}`
       );
 
       if (!quota.allowed) {
-        console.log(`[DeepSeek Quota] REJECTED (429) — IP limit reached. DeepSeek will NOT be called.`);
+        console.log(`[DeepSeek Quota] REJECTED (429) — Quota limit reached. DeepSeek will NOT be called.`);
         return res.status(429).json({
           error: 'DEEPSEEK_LIMIT_REACHED',
           message: 'You have used your 2 DeepSeek messages.',

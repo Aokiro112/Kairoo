@@ -14,34 +14,73 @@ export interface DeepSeekQuotaStatus {
   reason?: string;
 }
 
+export interface AntiAbuseContext {
+  ipHash: string;
+  deviceHash?: string | null;
+  accountEmail?: string | null;
+}
+
+export type QuotaTarget = string | AntiAbuseContext;
+
 /**
- * Strict chained mutex to serialize concurrent requests for the exact same IP hash
- * within the Node.js event loop, eliminating race conditions before database transactions.
+ * Normalizes input target into a structured AntiAbuseContext.
+ * Guarantees 100% backward compatibility for callers passing raw `ipHash` strings.
  */
-class IpMutex {
+export function normalizeTarget(target: QuotaTarget): {
+  ipHash: string;
+  deviceHash: string | null;
+  accountEmail: string | null;
+} {
+  if (typeof target === 'string') {
+    return { ipHash: target, deviceHash: null, accountEmail: null };
+  }
+  return {
+    ipHash: target.ipHash,
+    deviceHash: target.deviceHash || null,
+    accountEmail: target.accountEmail ? target.accountEmail.trim().toLowerCase() : null,
+  };
+}
+
+/**
+ * Multi-key chained mutex to serialize concurrent requests for the same IP hash
+ * and/or same device hash within the Node.js event loop.
+ * Acquires sorted keys to prevent deadlocks and eliminates race conditions before DB transactions.
+ */
+class AntiAbuseMutex {
   private activeLocks = new Map<string, Promise<void>>();
 
-  async runExclusive<T>(key: string, fn: () => Promise<T>): Promise<T> {
-    const prev = this.activeLocks.get(key) || Promise.resolve();
-    let release: () => void = () => {};
-    const current = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    this.activeLocks.set(key, current);
+  async runExclusive<T>(keys: string[], fn: () => Promise<T>): Promise<T> {
+    const sortedKeys = Array.from(new Set(keys.filter(Boolean))).sort();
+    if (sortedKeys.length === 0) return await fn();
 
-    try {
-      await prev;
-      return await fn();
-    } finally {
-      release();
-      if (this.activeLocks.get(key) === current) {
-        this.activeLocks.delete(key);
+    const acquireNext = async (idx: number): Promise<T> => {
+      if (idx >= sortedKeys.length) {
+        return await fn();
       }
-    }
+      const key = sortedKeys[idx];
+      const prev = this.activeLocks.get(key) || Promise.resolve();
+      let release: () => void = () => {};
+      const current = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      this.activeLocks.set(key, current);
+
+      try {
+        await prev;
+        return await acquireNext(idx + 1);
+      } finally {
+        release();
+        if (this.activeLocks.get(key) === current) {
+          this.activeLocks.delete(key);
+        }
+      }
+    };
+
+    return await acquireNext(0);
   }
 }
 
-const ipMutex = new IpMutex();
+const antiAbuseMutex = new AntiAbuseMutex();
 
 /**
  * Generates the unique UserUsage identifier for an IP hash.
@@ -51,26 +90,75 @@ export function getDeepSeekIdentifier(ipHash: string): string {
 }
 
 /**
- * Read-only status check for a given IP hash.
+ * Helper to build database search conditions matching ANY of the active anti-abuse signals:
+ * - Client IP hash
+ * - Persistent first-party device hash
+ * - Associated account email(s)
+ */
+function buildSearchConditions(
+  ipHash: string,
+  deviceHash: string | null,
+  accountEmail: string | null
+): any[] {
+  const conditions: any[] = [
+    { ipHash },
+    { identifier: getDeepSeekIdentifier(ipHash) },
+  ];
+
+  if (deviceHash) {
+    conditions.push({ deviceHash });
+    conditions.push({ identifier: `deepseek_dev:${deviceHash}` });
+  }
+
+  if (accountEmail) {
+    conditions.push({ accountEmails: { contains: accountEmail } });
+    conditions.push({ identifier: `account:${accountEmail}` });
+  }
+
+  return conditions;
+}
+
+/**
+ * Merges and normalizes comma-separated account email records without duplicates.
+ */
+function mergeAccountEmails(
+  existing: string | null | undefined,
+  newEmail: string | null | undefined
+): string | null {
+  if (!newEmail && !existing) return null;
+  const set = new Set<string>();
+  if (existing) {
+    existing
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean)
+      .forEach((e) => set.add(e));
+  }
+  if (newEmail) {
+    set.add(newEmail.trim().toLowerCase());
+  }
+  return set.size > 0 ? Array.from(set).join(',') : null;
+}
+
+/**
+ * Read-only status check across all anti-abuse signals (IP + Device + Account).
  * Does not mutate records or consume quota slots.
  */
 export async function getDeepSeekQuotaStatus(
-  ipHash: string,
+  target: QuotaTarget,
   now: Date = new Date()
 ): Promise<DeepSeekQuotaStatus> {
-  const identifier = getDeepSeekIdentifier(ipHash);
+  const { ipHash, deviceHash, accountEmail } = normalizeTarget(target);
+  const searchConditions = buildSearchConditions(ipHash, deviceHash, accountEmail);
 
-  const record = await prisma.userUsage.findFirst({
+  const records = await prisma.userUsage.findMany({
     where: {
-      OR: [
-        { ipHash },
-        { identifier },
-      ],
+      OR: searchConditions,
     },
     orderBy: { updatedAt: 'desc' },
   });
 
-  if (!record || !record.deepseekWindowStart) {
+  if (!records || records.length === 0) {
     return {
       allowed: true,
       limit: MAX_DEEPSEEK_REQUESTS,
@@ -81,8 +169,15 @@ export async function getDeepSeekQuotaStatus(
     };
   }
 
-  const windowStartTime = new Date(record.deepseekWindowStart).getTime();
-  if (isNaN(windowStartTime)) {
+  // Find active (unexpired) records in this quota environment
+  const activeRecords = records.filter((r) => {
+    if (!r.deepseekWindowStart) return false;
+    const wTime = new Date(r.deepseekWindowStart).getTime();
+    return !isNaN(wTime) && now.getTime() < wTime + DEEPSEEK_WINDOW_MS;
+  });
+
+  if (activeRecords.length === 0) {
+    // All windows have expired; fresh quota available
     return {
       allowed: true,
       limit: MAX_DEEPSEEK_REQUESTS,
@@ -93,72 +188,85 @@ export async function getDeepSeekQuotaStatus(
     };
   }
 
-  const unlockTime = windowStartTime + DEEPSEEK_WINDOW_MS;
-  const isExpired = now.getTime() >= unlockTime;
-
-  if (isExpired) {
-    // Window has passed; quota will reset upon next request
+  // Check if any matching active record has exhausted the quota
+  const exhausted = activeRecords.find((r) => r.deepseekUses >= MAX_DEEPSEEK_REQUESTS);
+  if (exhausted) {
+    const wTime = new Date(exhausted.deepseekWindowStart!).getTime();
+    const unlockTime = wTime + DEEPSEEK_WINDOW_MS;
     return {
-      allowed: true,
+      allowed: false,
       limit: MAX_DEEPSEEK_REQUESTS,
-      used: 0,
-      remaining: MAX_DEEPSEEK_REQUESTS,
-      resetAt: null,
-      windowStart: null,
+      used: MAX_DEEPSEEK_REQUESTS,
+      remaining: 0,
+      resetAt: new Date(unlockTime),
+      windowStart: new Date(wTime),
+      reason: 'DEEPSEEK_LIMIT_REACHED',
     };
   }
 
-  const used = Math.min(record.deepseekUses, MAX_DEEPSEEK_REQUESTS);
+  // Quota is active and has remaining slots; pick the record with highest usage
+  const primary = activeRecords.sort((a, b) => b.deepseekUses - a.deepseekUses)[0];
+  const wTime = new Date(primary.deepseekWindowStart!).getTime();
+  const unlockTime = wTime + DEEPSEEK_WINDOW_MS;
+  const used = Math.min(primary.deepseekUses, MAX_DEEPSEEK_REQUESTS);
   const remaining = Math.max(0, MAX_DEEPSEEK_REQUESTS - used);
-  const allowed = used < MAX_DEEPSEEK_REQUESTS;
-  const resetAt = new Date(unlockTime);
 
   return {
-    allowed,
+    allowed: true,
     limit: MAX_DEEPSEEK_REQUESTS,
     used,
     remaining,
-    resetAt,
-    windowStart: new Date(windowStartTime),
-    reason: allowed ? undefined : 'DEEPSEEK_LIMIT_REACHED',
+    resetAt: new Date(unlockTime),
+    windowStart: new Date(wTime),
   };
 }
 
 /**
- * Atomically checks and reserves a DeepSeek quota slot for the IP hash.
+ * Atomically checks and reserves a DeepSeek quota slot across anti-abuse signals.
  *
- * Concurrency Safety:
- * 1. Chained in-process mutex serializes concurrent requests for the exact same IP hash.
- * 2. Prisma transaction ensures atomic reads and writes in the persistent SQLite database.
- * 3. If window expired, resets usage to 1 and anchors windowStart to `now`.
- * 4. If window active and used < 2, increments usage while keeping original windowStart intact.
- * 5. If used >= 2, rejects with allowed=false and calculated resetAt timestamp.
+ * Multi-Signal Protection:
+ * 1. IP Hash (client connection)
+ * 2. Device Hash (server-authenticated first-party persistent cookie)
+ * 3. Account Email (when authenticated)
+ *
+ * Anti-Abuse Rules:
+ * - Switching accounts on the same device or same IP cannot grant fresh quota.
+ * - One user request consumes exactly ONE logical quota unit (NO double-charging).
+ * - 3-day window is strictly anchored to the first request of the window and persists across logins/logouts.
  */
 export async function reserveDeepSeekQuota(
-  ipHash: string,
+  target: QuotaTarget,
   now: Date = new Date()
 ): Promise<DeepSeekQuotaStatus> {
-  const identifier = getDeepSeekIdentifier(ipHash);
+  const { ipHash, deviceHash, accountEmail } = normalizeTarget(target);
 
-  return await ipMutex.runExclusive(ipHash, async () => {
+  const lockKeys = [
+    `ip:${ipHash}`,
+    deviceHash ? `dev:${deviceHash}` : '',
+  ].filter(Boolean);
+
+  return await antiAbuseMutex.runExclusive(lockKeys, async () => {
     return await prisma.$transaction(async (tx) => {
-      const existing = await tx.userUsage.findFirst({
+      const searchConditions = buildSearchConditions(ipHash, deviceHash, accountEmail);
+
+      const existingRecords = await tx.userUsage.findMany({
         where: {
-          OR: [
-            { ipHash },
-            { identifier },
-          ],
+          OR: searchConditions,
         },
         orderBy: { updatedAt: 'desc' },
       });
 
-      // Case 1: First request ever from this IP
-      if (!existing) {
+      // Case 1: First request ever from this environment (fresh IP, fresh device, fresh account)
+      if (!existingRecords || existingRecords.length === 0) {
+        const identifier = getDeepSeekIdentifier(ipHash);
         const resetAt = new Date(now.getTime() + DEEPSEEK_WINDOW_MS);
+
         await tx.userUsage.create({
           data: {
             identifier,
             ipHash,
+            deviceHash,
+            accountEmails: accountEmail || null,
             deepseekUses: 1,
             deepseekWindowStart: now,
           },
@@ -174,71 +282,96 @@ export async function reserveDeepSeekQuota(
         };
       }
 
-      // Case 2: Record exists - check if window has expired or was not yet started
-      const windowStart = existing.deepseekWindowStart;
-      const windowStartTime = windowStart ? new Date(windowStart).getTime() : NaN;
-      const isExpired = !windowStart || isNaN(windowStartTime) || now.getTime() >= windowStartTime + DEEPSEEK_WINDOW_MS;
+      // Case 2: Matching record(s) exist - evaluate active window vs expired
+      const activeRecords = existingRecords.filter((r) => {
+        if (!r.deepseekWindowStart) return false;
+        const wTime = new Date(r.deepseekWindowStart).getTime();
+        return !isNaN(wTime) && now.getTime() < wTime + DEEPSEEK_WINDOW_MS;
+      });
 
-      if (isExpired) {
-        // Automatically start fresh 3-day window anchored to this request
-        const resetAt = new Date(now.getTime() + DEEPSEEK_WINDOW_MS);
+      // Sub-case 2a: Quota is exhausted in an active window
+      const exhaustedRecord = activeRecords.find((r) => r.deepseekUses >= MAX_DEEPSEEK_REQUESTS);
+      if (exhaustedRecord) {
+        const wTime = new Date(exhaustedRecord.deepseekWindowStart!).getTime();
+        const unlockTime = wTime + DEEPSEEK_WINDOW_MS;
+        const resetAt = new Date(unlockTime);
+
+        // Ensure current deviceHash and accountEmail are linked to this record
+        const updatedAccounts = mergeAccountEmails(exhaustedRecord.accountEmails, accountEmail);
         await tx.userUsage.update({
-          where: { id: existing.id },
+          where: { id: exhaustedRecord.id },
           data: {
-            identifier,
-            ipHash: existing.ipHash || ipHash,
-            deepseekUses: 1,
-            deepseekWindowStart: now,
+            deviceHash: deviceHash || exhaustedRecord.deviceHash,
+            accountEmails: updatedAccounts,
           },
         });
 
-        return {
-          allowed: true,
-          limit: MAX_DEEPSEEK_REQUESTS,
-          used: 1,
-          remaining: 1,
-          resetAt,
-          windowStart: now,
-        };
-      }
-
-      // Case 3: Window is currently active
-      const unlockTime = windowStartTime + DEEPSEEK_WINDOW_MS;
-      const resetAt = new Date(unlockTime);
-
-      if (existing.deepseekUses >= MAX_DEEPSEEK_REQUESTS) {
-        // Quota exhausted within active window
         return {
           allowed: false,
           limit: MAX_DEEPSEEK_REQUESTS,
-          used: Math.min(existing.deepseekUses, MAX_DEEPSEEK_REQUESTS),
+          used: MAX_DEEPSEEK_REQUESTS,
           remaining: 0,
           resetAt,
-          windowStart: new Date(windowStartTime),
+          windowStart: new Date(wTime),
           reason: 'DEEPSEEK_LIMIT_REACHED',
         };
       }
 
-      // Slot available: increment usage atomically while keeping windowStart unchanged (anchored)
-      const updated = await tx.userUsage.update({
-        where: { id: existing.id },
+      // Sub-case 2b: Active window with slots available (< 2 uses)
+      if (activeRecords.length > 0) {
+        const primaryRecord = activeRecords.sort((a, b) => b.deepseekUses - a.deepseekUses)[0];
+        const wTime = new Date(primaryRecord.deepseekWindowStart!).getTime();
+        const unlockTime = wTime + DEEPSEEK_WINDOW_MS;
+        const resetAt = new Date(unlockTime);
+
+        const updatedAccounts = mergeAccountEmails(primaryRecord.accountEmails, accountEmail);
+        const updated = await tx.userUsage.update({
+          where: { id: primaryRecord.id },
+          data: {
+            ipHash: ipHash || primaryRecord.ipHash,
+            deviceHash: deviceHash || primaryRecord.deviceHash,
+            accountEmails: updatedAccounts,
+            deepseekUses: { increment: 1 },
+          },
+        });
+
+        const newUsed = updated.deepseekUses;
+        const remaining = Math.max(0, MAX_DEEPSEEK_REQUESTS - newUsed);
+
+        return {
+          allowed: true,
+          limit: MAX_DEEPSEEK_REQUESTS,
+          used: newUsed,
+          remaining,
+          resetAt,
+          windowStart: new Date(wTime),
+        };
+      }
+
+      // Sub-case 2c: All records in this environment have expired (> 3 days)
+      // Start a fresh 3-day window anchored to this request
+      const primaryRecord = existingRecords[0];
+      const resetAt = new Date(now.getTime() + DEEPSEEK_WINDOW_MS);
+      const updatedAccounts = mergeAccountEmails(primaryRecord.accountEmails, accountEmail);
+
+      await tx.userUsage.update({
+        where: { id: primaryRecord.id },
         data: {
-          identifier,
-          ipHash: existing.ipHash || ipHash,
-          deepseekUses: { increment: 1 },
+          ipHash: ipHash || primaryRecord.ipHash,
+          deviceHash: deviceHash || primaryRecord.deviceHash,
+          accountEmails: updatedAccounts,
+          deepseekUses: 1,
+          deepseekWindowStart: now,
         },
       });
-
-      const newUsed = updated.deepseekUses;
-      const remaining = Math.max(0, MAX_DEEPSEEK_REQUESTS - newUsed);
 
       return {
         allowed: true,
         limit: MAX_DEEPSEEK_REQUESTS,
-        used: newUsed,
-        remaining,
+        used: 1,
+        remaining: 1,
         resetAt,
-        windowStart: new Date(windowStartTime),
+        windowStart: now,
       };
     });
   });
@@ -247,22 +380,22 @@ export async function reserveDeepSeekQuota(
 /**
  * Releases a previously reserved quota slot if DeepSeek fails due to an upstream
  * provider or server error before any usable response is produced.
- *
- * If the failed request was the initial message (usage was 1), deepseekWindowStart
- * is cleared so the 3-day timer does not lock an unused window.
  */
-export async function releaseDeepSeekReservation(ipHash: string): Promise<void> {
-  const identifier = getDeepSeekIdentifier(ipHash);
+export async function releaseDeepSeekReservation(target: QuotaTarget): Promise<void> {
+  const { ipHash, deviceHash, accountEmail } = normalizeTarget(target);
+  const lockKeys = [
+    `ip:${ipHash}`,
+    deviceHash ? `dev:${deviceHash}` : '',
+  ].filter(Boolean);
 
-  await ipMutex.runExclusive(ipHash, async () => {
+  await antiAbuseMutex.runExclusive(lockKeys, async () => {
     await prisma.$transaction(async (tx) => {
+      const searchConditions = buildSearchConditions(ipHash, deviceHash, accountEmail);
       const record = await tx.userUsage.findFirst({
         where: {
-          OR: [
-            { ipHash },
-            { identifier },
-          ],
+          OR: searchConditions,
         },
+        orderBy: { updatedAt: 'desc' },
       });
 
       if (!record || record.deepseekUses <= 0) return;
