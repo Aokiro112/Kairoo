@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 🔧 MAINTENANCE MODE TOGGLE
-// Set to `true` to put the entire site in maintenance mode.
-// Set to `false` to restore normal operation.
+// 🔧 MAINTENANCE / OPEN-SOURCE TRANSITION MODE
+// Set to `true` to redirect traffic to the /maintenance announcement page (open source transition).
+// Set to `false` to restore normal web application routing.
 const MAINTENANCE_MODE = true;
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
