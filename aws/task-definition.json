@@ -1,0 +1,101 @@
+{
+  "family": "kairo-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/kairoEcsExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/kairoEcsTaskRole",
+  "volumes": [
+    {
+      "name": "kairo-db",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "EFS_FILE_SYSTEM_ID",
+        "rootDirectory": "/kairo",
+        "transitEncryption": "ENABLED"
+      }
+    }
+  ],
+  "containerDefinitions": [
+    {
+      "name": "kairo-backend",
+      "image": "ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/kairo-backend:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 5000,
+          "protocol": "tcp"
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "kairo-db",
+          "containerPath": "/app/prisma",
+          "readOnly": false
+        }
+      ],
+      "environment": [
+        { "name": "PORT", "value": "5000" },
+        { "name": "DATABASE_URL", "value": "file:/app/prisma/dev.db" },
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "DEEPSEEK_MODEL", "value": "deepseek-chat" }
+      ],
+      "secrets": [
+        {
+          "name": "GROQ_API_KEY_1",
+          "valueFrom": "arn:aws:ssm:ap-south-1:ACCOUNT_ID:parameter/kairo/groq-key-1"
+        },
+        {
+          "name": "GROQ_API_KEY_2",
+          "valueFrom": "arn:aws:ssm:ap-south-1:ACCOUNT_ID:parameter/kairo/groq-key-2"
+        },
+        {
+          "name": "DEEPSEEK_API_KEY",
+          "valueFrom": "arn:aws:ssm:ap-south-1:ACCOUNT_ID:parameter/kairo/deepseek-key"
+        },
+        {
+          "name": "IP_HASH_SALT",
+          "valueFrom": "arn:aws:ssm:ap-south-1:ACCOUNT_ID:parameter/kairo/ip-hash-salt"
+        },
+        {
+          "name": "GOOGLE_CLIENT_ID",
+          "valueFrom": "arn:aws:ssm:ap-south-1:ACCOUNT_ID:parameter/kairo/google-client-id"
+        },
+        {
+          "name": "GOOGLE_CLIENT_SECRET",
+          "valueFrom": "arn:aws:ssm:ap-south-1:ACCOUNT_ID:parameter/kairo/google-client-secret"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/kairo-backend",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:5000/api/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    },
+    {
+      "name": "kairo-security-engine",
+      "image": "ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/kairo-security-engine:latest",
+      "essential": false,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/kairo-security-engine",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ]
+}

@@ -73,6 +73,7 @@ Modern cybersecurity operations require orchestrating multiple command-line util
 - **🧠 DeepSeek Paid AI Provider & IP-Based Quotas**:
   - Secure server-side DeepSeek integration (`DEEPSEEK_API_KEY` never exposed to client).
   - Strict 2-request limit within a 3-day rolling window per unique client IP.
+
   - Privacy-safe SHA-256 IP hashing with server-side salt (`IP_HASH_SALT`).
   - Concurrency-safe atomic reservations preventing race conditions via database transactions and mutex locks.
   - Automatic reservation release if the upstream API fails before generating usable output.

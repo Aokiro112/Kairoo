@@ -60,10 +60,11 @@ const chatLimiter = rateLimit({
 
 app.use(globalLimiter);
 
-// 3. CORS configuration for kairo.bond, Vercel deployments, and local development
+// 3. CORS configuration for kairo.bond, Vercel, AWS, and local development
 const allowedOrigins = [
   'https://kairo.bond',
   'https://www.kairo.bond',
+  'https://api.kairo.bond',
   'http://localhost:3000',
   'http://localhost:5000',
 ];

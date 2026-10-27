@@ -3,6 +3,9 @@
 # Git Ignore Configuration
 # ==========================================
 
+# AWS Infrastructure Config (contains account-specific IDs)
+aws/.infra-config
+
 # 1. Environment Variables, Secrets & Credentials (CRITICAL)
 # ------------------------------------------
 .env

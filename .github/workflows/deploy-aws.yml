@@ -1,0 +1,117 @@
+# ==============================================================================
+# 🚀 Kairo — Deploy Backend to AWS ECS (GitHub Actions)
+# ==============================================================================
+# Triggers on push to main branch (Backend/ or SecurityEngine/ changes)
+# Builds Docker images, pushes to ECR, deploys to ECS Fargate Spot
+# ==============================================================================
+
+name: Deploy to AWS ECS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Backend/**'
+      - 'SecurityEngine/**'
+      - 'aws/**'
+
+  workflow_dispatch: # Manual trigger
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_BACKEND: kairo-backend
+  ECR_SECURITY: kairo-security-engine
+  ECS_CLUSTER: kairo-cluster
+  ECS_SERVICE: kairo-backend-service
+  ECS_TASK_FAMILY: kairo-backend
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # ─── Checkout ───
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ─── AWS Credentials ───
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ─── ECR Login ───
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ─── Build & Push Backend ───
+      - name: Build and push Backend image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_BACKEND:latest -t $ECR_REGISTRY/$ECR_BACKEND:$IMAGE_TAG -f Backend/Dockerfile Backend/
+          docker push $ECR_REGISTRY/$ECR_BACKEND:latest
+          docker push $ECR_REGISTRY/$ECR_BACKEND:$IMAGE_TAG
+
+      # ─── Build & Push SecurityEngine ───
+      - name: Build and push SecurityEngine image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_SECURITY:latest -t $ECR_REGISTRY/$ECR_SECURITY:$IMAGE_TAG -f SecurityEngine/Dockerfile SecurityEngine/
+          docker push $ECR_REGISTRY/$ECR_SECURITY:latest
+          docker push $ECR_REGISTRY/$ECR_SECURITY:$IMAGE_TAG
+
+      # ─── Update Task Definition ───
+      - name: Render task definition (Backend)
+        id: render-backend
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: aws/task-definition.json
+          container-name: kairo-backend
+          image: ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_BACKEND }}:${{ github.sha }}
+
+      - name: Render task definition (SecurityEngine)
+        id: render-security
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-backend.outputs.task-definition }}
+          container-name: kairo-security-engine
+          image: ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_SECURITY }}:${{ github.sha }}
+
+      # ─── Deploy to ECS ───
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-security.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 10
+
+      # ─── Health Check ───
+      - name: Verify deployment health
+        run: |
+          echo "⏳ Waiting for service to stabilize..."
+          sleep 30
+
+          TASK_ARN=$(aws ecs list-tasks --cluster $ECS_CLUSTER --service-name $ECS_SERVICE --region $AWS_REGION --query 'taskArns[0]' --output text)
+
+          if [ "$TASK_ARN" = "None" ] || [ -z "$TASK_ARN" ]; then
+            echo "❌ No running tasks found"
+            exit 1
+          fi
+
+          STATUS=$(aws ecs describe-tasks --cluster $ECS_CLUSTER --tasks $TASK_ARN --region $AWS_REGION --query 'tasks[0].lastStatus' --output text)
+          echo "✅ Task status: $STATUS"
